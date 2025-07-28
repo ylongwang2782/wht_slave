@@ -89,6 +89,8 @@ static void uwb_comm_task(void *argument) {
         if (osMessageQueueGet(uwb_txQueue, &tx_msg, NULL, 0) == osOK) {
             switch (tx_msg.type) {
                 case UWB_MSG_TYPE_SEND_DATA:
+                    dwt_forcetrxoff();    // 保证发送前DW1000已空闲
+
                     // 发送UWB数据
                     dwt_writetxdata(tx_msg.data_len, tx_msg.data, 0);
                     dwt_writetxfctrl(tx_msg.data_len, 0, 0);
@@ -104,7 +106,7 @@ static void uwb_comm_task(void *argument) {
                     // 发送完成后重新启动接收
                     dwt_rxenable(DWT_START_RX_IMMEDIATE);
 
-                    elog_i(TAG, "Sent %d bytes", tx_msg.data_len);
+                    // elog_i(TAG, "Sent %d bytes done", tx_msg.data_len);
                     break;
 
                 case UWB_MSG_TYPE_CONFIG:
@@ -127,10 +129,12 @@ static void uwb_comm_task(void *argument) {
         // 检查是否有接收数据
         status_reg = dwt_read32bitreg(SYS_STATUS_ID);
         if (status_reg & (SYS_STATUS_RXFCG | SYS_STATUS_ALL_RX_ERR)) {
+            elog_i(TAG, "status_reg: %08X", status_reg);
             if (status_reg & SYS_STATUS_RXFCG) {
                 // 成功接收到数据
                 frame_len =
                     dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFL_MASK_1023;
+                // elog_i(TAG, "frame_len: %d", frame_len);
                 if (frame_len <= FRAME_LEN_MAX) {
                     dwt_readrxdata(rx_buffer, frame_len, 0);
 

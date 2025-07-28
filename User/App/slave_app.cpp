@@ -11,10 +11,13 @@ extern "C" int main_app(void) {
     // elog_i(TAG, "slave_app");
     UWB_Task_Init();
 
+    uint8_t data[] = {0xC5, 0x01, 'H', 'E', 'L', 'L', 'O'};
     for (;;) {
-        elog_i(TAG, "slave_app");
+        // Send UWB data with optional delay
+        int result = UWB_SendData(data, sizeof(data), 0);
+        // elog_i(TAG, "slave_app");
         HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-        osDelay(10);
+        osDelay(100);
     }
     return 0;
 }
