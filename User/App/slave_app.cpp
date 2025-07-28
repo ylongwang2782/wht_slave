@@ -11,7 +11,7 @@ extern "C" int main_app(void) {
     // elog_i(TAG, "slave_app");
     UWB_Task_Init();
 
-    uint8_t data[] = {0xC5, 0x01, 'H', 'E', 'L', 'L', 'O'};
+    uint8_t data[] = {0x00,0x01,0x02,0x03};
     for (;;) {
         // Send UWB data with optional delay
         int result = UWB_SendData(data, sizeof(data), 0);

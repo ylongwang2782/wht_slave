@@ -92,8 +92,10 @@ static void uwb_comm_task(void *argument) {
                     dwt_forcetrxoff();    // 保证发送前DW1000已空闲
 
                     // 发送UWB数据
-                    dwt_writetxdata(tx_msg.data_len, tx_msg.data, 0);
-                    dwt_writetxfctrl(tx_msg.data_len, 0, 0);
+                    // DW1000会自动添加2字节CRC，所以实际写入的数据长度是用户数据长度
+                    // 但是dwt_writetxfctrl需要包含CRC的总长度
+                    dwt_writetxdata(tx_msg.data_len + 2, tx_msg.data, 0);
+                    dwt_writetxfctrl(tx_msg.data_len + 2, 0, 0);
                     dwt_starttx(DWT_START_TX_IMMEDIATE);
 
                     // 等待发送完成
@@ -135,12 +137,14 @@ static void uwb_comm_task(void *argument) {
                 frame_len =
                     dwt_read32bitreg(RX_FINFO_ID) & RX_FINFO_RXFL_MASK_1023;
                 // elog_i(TAG, "frame_len: %d", frame_len);
-                if (frame_len <= FRAME_LEN_MAX) {
+
+                // frame_len包含2字节CRC，需要减去CRC长度得到实际数据长度
+                if (frame_len >= 2 && frame_len <= FRAME_LEN_MAX) {
                     dwt_readrxdata(rx_buffer, frame_len, 0);
 
-                    // 构造接收消息
-                    rx_msg.data_len = frame_len;
-                    for (int i = 0; i < frame_len; i++) {
+                    // 构造接收消息，只包含用户数据，不包含CRC
+                    rx_msg.data_len = frame_len - 2;    // 减去2字节CRC
+                    for (int i = 0; i < rx_msg.data_len; i++) {
                         rx_msg.data[i] = rx_buffer[i];
                     }
                     rx_msg.timestamp = osKernelGetTickCount();
@@ -213,8 +217,8 @@ int UWB_SendData(const uint8_t *data, uint16_t len, uint32_t delay_ms) {
     msg.data_len = len;
     msg.delay_ms = delay_ms;
 
-    // 手动复制数据
-    for (int i = 0; i < len; i++) {
+    // 复制数据到消息结构体
+    for (uint16_t i = 0; i < len; i++) {
         msg.data[i] = data[i];
     }
 
