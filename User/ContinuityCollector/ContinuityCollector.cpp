@@ -105,13 +105,13 @@ bool ContinuityCollector::configure(const CollectorConfig &config) {
 }
 
 bool ContinuityCollector::startCollection() {
-    // if (status_ == CollectionStatus::RUNNING) {
-    //     return false;
-    // }
+    if (status_ == CollectionStatus::RUNNING) {
+        return false;
+    }
 
-    // if (config_.num == 0) {
-    //     return false;
-    // }
+    if (config_.num == 0) {
+        return false;
+    }
 
     // 停止之前的采集
     stopCollection();
@@ -193,14 +193,14 @@ void ContinuityCollector::processCollection() {
         // 读取当前周期的所有引脚状态
         std::vector<ContinuityState> cycleData;
         cycleData.reserve(config_.num);
-        // Log::d("ContinuityCollector", "Cycle %d: Reading %d pins after 5ms
+        // elog_d("ContinuityCollector", "Cycle %d: Reading %d pins after 5ms
         // delay",
         //        currentCycle_, config_.num);
 
         for (uint8_t pin = 0; pin < config_.num; pin++) {
             ContinuityState state = readPinContinuity(pin);
             cycleData.push_back(state);
-            // Log::d("ContinuityCollector", "Cycle %d, Pin %d (physical %d):
+            // elog_d("ContinuityCollector", "Cycle %d, Pin %d (physical %d):
             // %s",
             //        currentCycle_, pin, config_.getPhysicalPin(pin),
             //        (state == ContinuityState::CONNECTED) ? "CONNECTED" :
@@ -214,10 +214,6 @@ void ContinuityCollector::processCollection() {
             }
         }
 
-        // // 调用进度回调
-        // if (progressCallback_) {
-        //     progressCallback_(currentCycle_ + 1, config_.totalDetectionNum);
-        // }
 
         // 更新时间和周期
         lastProcessTime_ = currentTime;

@@ -7,3 +7,5 @@
 - [ ] 移植导通采集器ContinuityCollector
 - [ ] 移植uid
 - [ ] 移植input_adapter
+- [ ] 移植SlaveDevice
+  - [ ] 修改SlaveDevice中的发送接收逻辑使用UWB Send
