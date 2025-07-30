@@ -4,7 +4,7 @@ namespace WhtsProtocol {
 
 uint16_t DeviceStatus::toUint16() const {
     uint16_t result = 0;
-    if (colorSensor)
+    if (clrSensor)
         result |= (1 << 0);
     if (sleeveLimit)
         result |= (1 << 1);
@@ -26,7 +26,7 @@ uint16_t DeviceStatus::toUint16() const {
 }
 
 void DeviceStatus::fromUint16(uint16_t status) {
-    colorSensor = (status & (1 << 0)) != 0;
+    clrSensor = (status & (1 << 0)) != 0;
     sleeveLimit = (status & (1 << 1)) != 0;
     electromagnetUnlockButton = (status & (1 << 2)) != 0;
     batteryLowAlarm = (status & (1 << 3)) != 0;

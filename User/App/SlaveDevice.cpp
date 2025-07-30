@@ -46,7 +46,7 @@ SlaveDevice::SlaveDevice()
     announceTask = std::make_unique<AnnounceTask>(*this);
     joinTask = std::make_unique<JoinTask>(*this);
     slaveDataProcT = std::make_unique<SlaveDataProcT>(*this);
-    // accessoryTask = std::make_unique<AccessoryTask>(*this);
+    accessoryTask = std::make_unique<AccessoryTask>(*this);
 }
 
 void SlaveDevice::initializeMessageHandlers() {
@@ -212,8 +212,6 @@ void SlaveDevice::run() {
         elog_d(TAG, "DataCollectionTask initialized and started");
     }
 
-    // TODO: announceTask 和 joinTask是否可以合并？
-
     if (announceTask) {
         announceTask->give();
         elog_d(TAG, "AnnounceTask initialized and started");
@@ -229,8 +227,22 @@ void SlaveDevice::run() {
         elog_d(TAG, "SlaveDataProcT initialized and started");
     }
 
+    if (accessoryTask) {
+        accessoryTask->give();
+        elog_d(TAG, "AccessoryTask initialized and started");
+    }
+    HalButton key1("Key1", KEY1_GPIO_Port, KEY1_Pin);
+    HalButton unlockBtn("unlockBtn", UNLOCK_BTN_GPIO_Port, UNLOCK_BTN_Pin);
+    HalValve valve1("Valve1", VALVE1_GPIO_Port, VALVE1_Pin);
+    LockController lockController("LockController", key1, unlockBtn, valve1);
+
     while (1) {
-        elog_d(TAG, "hptimer ms: %d", hal_hptimer_get_ms());
+        // elog_d(TAG, "hptimer ms: %d", hal_hptimer_get_ms());
+
+        lockController.update();
+
+        deviceStatus.electromagneticLock1 =
+            (lockController.getState() == LockState::Locked);
 
         HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
         TaskBase::delay(500);
@@ -527,6 +539,59 @@ void SlaveDevice::SlaveDataProcT::task() {
         }
         TaskBase::delay(1);
     }
+}
+
+// AccessoryTask 实现
+SlaveDevice::AccessoryTask::AccessoryTask(SlaveDevice& parent)
+    : TaskClassS("AccessoryTask", TaskPrio_Mid),
+      parent(parent),
+      key1("Key1", KEY1_GPIO_Port, KEY1_Pin),
+      unlockBtn("unlockBtn", UNLOCK_BTN_GPIO_Port, UNLOCK_BTN_Pin),
+      auxBtn1("auxBtn1", AUX_BTN1_GPIO_Port, AUX_BTN1_Pin),
+      auxBtn2("auxBtn2", AUX_BTN2_GPIO_Port, AUX_BTN2_Pin),
+      pSensor("pSensor", P_SENSOR_GPIO_Port, P_SENSOR_Pin),
+      clrSensor("clrSensor", CLR_SENSOR_GPIO_Port, CLR_SENSOR_Pin),
+      valve1("Valve1", VALVE1_GPIO_Port, VALVE1_Pin),
+      dipInfo{{
+          {DIP1_GPIO_Port, DIP1_Pin},
+          {DIP2_GPIO_Port, DIP2_Pin},
+          {DIP3_GPIO_Port, DIP3_Pin},
+          {DIP4_GPIO_Port, DIP4_Pin},
+          {DIP5_GPIO_Port, DIP5_Pin},
+          {DIP6_GPIO_Port, DIP6_Pin},
+          {DIP7_GPIO_Port, DIP7_Pin},
+          {DIP8_GPIO_Port, DIP8_Pin},
+      }},
+      dipSwitch(dipInfo),
+      lockController("LockController", key1, unlockBtn, valve1)
+
+{}
+
+void SlaveDevice::AccessoryTask::task() {
+    elog_d(TAG, "Accessory hardware initialized");
+
+    for (;;) {
+        // 自动处理逻辑
+        lockController.update();
+
+        // 更新设备状态
+        updateDeviceStatus();
+
+        TaskBase::delay(UPDATE_INTERVAL_MS);
+    }
+}
+
+void SlaveDevice::AccessoryTask::updateDeviceStatus() {
+    parent.deviceStatus.pressureSensor = pSensor.isTrigger();
+    parent.deviceStatus.clrSensor = clrSensor.isTrigger();
+    parent.deviceStatus.accessory1 = auxBtn1.isPressed();
+    parent.deviceStatus.accessory2 = auxBtn2.isPressed();
+    parent.deviceStatus.electromagneticLock1 =
+        (lockController.getState() == LockState::Locked);
+    parent.deviceStatus.electromagneticLock2 = true;    // 当前只有一个锁
+    parent.deviceStatus.electromagnetUnlockButton = unlockBtn.isPressed();
+    parent.deviceStatus.sleeveLimit = false;        // 暂时未实现
+    parent.deviceStatus.batteryLowAlarm = false;    // 暂时未实现
 }
 
 }    // namespace SlaveApp

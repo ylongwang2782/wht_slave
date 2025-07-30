@@ -7,7 +7,7 @@ namespace WhtsProtocol {
 
 // 设备状态位结构
 struct DeviceStatus {
-    bool colorSensor : 1;
+    bool clrSensor : 1;
     bool sleeveLimit : 1;
     bool electromagnetUnlockButton : 1;
     bool batteryLowAlarm : 1;

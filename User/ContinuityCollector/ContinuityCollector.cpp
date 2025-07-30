@@ -38,13 +38,12 @@ GpioPin CollectorConfig::getGpioPin(uint8_t logicalPin) const {
     uint8_t physicalPin = getPhysicalPin(logicalPin);
 
     // 计算端口索引和引脚号
-    uint8_t portIndex =
-        physicalPin / 16;    // PA=0, PB=1, PC=2, PD=3, PE=4, PF=5, PG=6
-    uint8_t pinNumber = physicalPin % 16;    // 引脚号 0-15
+    uint8_t portIndex = physicalPin / 16;
+    uint8_t pinNumber = physicalPin % 16;
 
     if (portIndex < 7) {
         GPIO_TypeDef *port = GPIO_PORTS[portIndex];
-        uint16_t pin = (1 << pinNumber);    // 转换为GPIO_PIN_x格式
+        uint16_t pin = (1 << pinNumber);
         return GpioPin(port, pin);
     }
 
@@ -213,7 +212,6 @@ void ContinuityCollector::processCollection() {
                 dataMatrix_[currentCycle_] = std::move(cycleData);
             }
         }
-
 
         // 更新时间和周期
         lastProcessTime_ = currentTime;

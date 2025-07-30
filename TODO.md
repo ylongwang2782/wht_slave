@@ -4,8 +4,10 @@
 - [x] 移植hptimer库
 - [x] 修复，发送时信道内需要有其他发送源的问题
 - [x] 移植wht protocol
-- [ ] 移植导通采集器ContinuityCollector
-- [ ] 移植uid
-- [ ] 移植input_adapter
-- [ ] 移植SlaveDevice
-  - [ ] 修改SlaveDevice中的发送接收逻辑使用UWB Send
+- [x] 移植导通采集器ContinuityCollector
+- [x] 移植uid
+- [x] 修改SlaveDevice中的发送接收逻辑使用UWB Send
+- [x] 移植accessoryTask
+  - [x] 移植HalButton
+  - [x] 移植InputAdapter
+- [ ] 修改elog实现日志时间函数注册

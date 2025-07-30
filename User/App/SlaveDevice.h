@@ -3,20 +3,14 @@
 #include <memory>
 
 #include "ContinuityCollector.h"
+#include "LockController.h"
 #include "SlaveDeviceState.h"
 #include "TaskCPP.h"
 #include "WhtsProtocol.h"
+#include "button.h"
 #include "hal_uid.hpp"
-// #include "button.h"
-// #include "InputAdapter.h"
-// #include "LockController.h"
-#include "SemaphoreCPP.h"
-
-#define ManagerDataTransferMsg_RXDATA_QUEUE_SIZE 1024
-
 namespace SlaveApp {
 
-// Forward declarations
 class IMaster2SlaveMessageHandler;
 
 /**
@@ -186,47 +180,34 @@ class SlaveDevice {
     /**
      * 外设管理任务类 - 管理按钮、传感器、阀门等外设状态
      */
-    // class AccessoryTask : public TaskClassS<1024> {
-    //    public:
-    //     AccessoryTask(SlaveDevice& parent);
+    class AccessoryTask : public TaskClassS<1024> {
+       public:
+        AccessoryTask(SlaveDevice& parent);
 
-    //    private:
-    //     SlaveDevice& parent;
-    //     void task() override;
-    //     void updateDeviceStatus();
-    //     static constexpr const char TAG[] = "AccessoryTask";
-    //     static constexpr uint32_t UPDATE_INTERVAL_MS = 100;  // 状态更新间隔
+       private:
+        SlaveDevice& parent;
+        void task() override;
+        void updateDeviceStatus();
+        static constexpr const char TAG[] = "AccessoryTask";
+        static constexpr uint32_t UPDATE_INTERVAL_MS = 100;    // 状态更新间隔
 
-    //     // HAL层对象
-    //     std::unique_ptr<HalButton> key1;
-    //     std::unique_ptr<HalButton> unlockButton;
-    //     std::unique_ptr<HalButton> accessory1Button;
-    //     std::unique_ptr<HalButton> accessory2Button;
-    //     std::unique_ptr<HalSensor> pressSensor;
-    //     std::unique_ptr<HalSensor> colorSensor;
-    //     std::unique_ptr<HalValve> valve1;
-    //     std::unique_ptr<HalDipSwitch> dipSwitch;
-
-    //     // Adapter层对象
-    //     std::unique_ptr<InputAdapter> keyAdapter;
-    //     std::unique_ptr<InputAdapter> buttonAdapter;
-    //     std::unique_ptr<InputAdapter> accessory1Adapter;
-    //     std::unique_ptr<InputAdapter> accessory2Adapter;
-
-    //     // 应用层对象
-    //     std::unique_ptr<LockController> lock1;
-    // };
+        HalButton key1;
+        HalButton unlockBtn;
+        HalButton auxBtn1;
+        HalButton auxBtn2;
+        HalSensor pSensor;
+        HalSensor clrSensor;
+        HalValve valve1;
+        DipSwitchInfo dipInfo;
+        HalDipSwitch dipSwitch;
+        LockController lockController;
+    };
 
     std::unique_ptr<DataCollectionTask> dataCollectionTask;
     std::unique_ptr<AnnounceTask> announceTask;
     std::unique_ptr<JoinTask> joinTask;
     std::unique_ptr<SlaveDataProcT> slaveDataProcT;
-    // std::unique_ptr<AccessoryTask> accessoryTask;
-
-    /**
-     * 启动所有内部任务
-     */
-    void startInternalTasks();
+    std::unique_ptr<AccessoryTask> accessoryTask;
 
     // Message handlers array for O(1) lookup
     IMaster2SlaveMessageHandler* messageHandlers_[256] = {};
