@@ -231,18 +231,9 @@ void SlaveDevice::run() {
         accessoryTask->give();
         elog_d(TAG, "AccessoryTask initialized and started");
     }
-    HalButton key1("Key1", KEY1_GPIO_Port, KEY1_Pin);
-    HalButton unlockBtn("unlockBtn", UNLOCK_BTN_GPIO_Port, UNLOCK_BTN_Pin);
-    HalValve valve1("Valve1", VALVE1_GPIO_Port, VALVE1_Pin);
-    LockController lockController("LockController", key1, unlockBtn, valve1);
 
     while (1) {
         // elog_d(TAG, "hptimer ms: %d", hal_hptimer_get_ms());
-
-        lockController.update();
-
-        deviceStatus.electromagneticLock1 =
-            (lockController.getState() == LockState::Locked);
 
         HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
         TaskBase::delay(500);
@@ -588,7 +579,7 @@ void SlaveDevice::AccessoryTask::updateDeviceStatus() {
     parent.deviceStatus.accessory2 = auxBtn2.isPressed();
     parent.deviceStatus.electromagneticLock1 =
         (lockController.getState() == LockState::Locked);
-    parent.deviceStatus.electromagneticLock2 = true;    // 当前只有一个锁
+    parent.deviceStatus.electromagneticLock2 = false;    // 当前只有一个锁
     parent.deviceStatus.electromagnetUnlockButton = unlockBtn.isPressed();
     parent.deviceStatus.sleeveLimit = false;        // 暂时未实现
     parent.deviceStatus.batteryLowAlarm = false;    // 暂时未实现
