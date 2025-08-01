@@ -485,6 +485,7 @@ void SlaveDevice::DataCollectionTask::task() {
             parent.slotManager->process();
         }
 
+        // 减少轮询间隔以提高时隙切换精度
         TaskBase::delay(1);
     }
 }

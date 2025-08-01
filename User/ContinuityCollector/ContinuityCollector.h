@@ -112,6 +112,8 @@ using SyncTimeCallback = std::function<uint64_t()>;
 // 导通数据采集器类
 class ContinuityCollector {
    private:
+   // define TAG
+    static constexpr const char* TAG = "ConCollector";
     static constexpr uint8_t MAX_GPIO_PINS = 64;
 
     CollectorConfig config_;         // 采集配置

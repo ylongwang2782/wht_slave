@@ -162,11 +162,12 @@ void SlotManager::switchToSlot(uint8_t newSlot) {
     if (currentSlotInfo_.slotType == SlotType::ACTIVE) {
         // 计算激活的引脚编号（逻辑引脚）
         currentSlotInfo_.activePin = newSlot - startSlot_;
-        elog_v("SlotManager", "Switched to ACTIVE slot %d, pin %d", 
-               newSlot, currentSlotInfo_.activePin);
+        elog_d("SlotManager", "Switched to ACTIVE slot %d, pin %d", 
+               newSlot, currentSlotInfo_.activePin, (unsigned long)(getCurrentSyncTimeUs() / 1000));
     } else {
         currentSlotInfo_.activePin = 0xFF; // 无效引脚
-        elog_v("SlotManager", "Switched to INACTIVE slot %d", newSlot);
+        elog_d("SlotManager", "Switched to INACTIVE slot %d", 
+               newSlot, (unsigned long)(getCurrentSyncTimeUs() / 1000));
     }
 
     // 触发回调
