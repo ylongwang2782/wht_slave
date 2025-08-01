@@ -10,7 +10,8 @@ SlotManager::SlotManager()
       isRunning_(false),
       isConfigured_(false),
       isFirstProcess_(true),
-      lastSlotTimeUs_(0) {
+      lastSlotTimeUs_(0),
+      startTimeUs_(0) {
     elog_v("SlotManager", "SlotManager constructed");
 }
 
@@ -65,8 +66,10 @@ bool SlotManager::start() {
 
     isRunning_ = true;
     isFirstProcess_ = true;  // 标记为第一次process调用
-    // 设置时间，确保第一个时隙有完整的时间间隔
-    lastSlotTimeUs_ = getCurrentSyncTimeUs();
+    
+    // 记录时隙调度开始的绝对时间
+    startTimeUs_ = getCurrentSyncTimeUs();
+    lastSlotTimeUs_ = startTimeUs_;
     
     // 设置初始时隙为0，但不立即触发回调
     currentSlotInfo_.currentSlot = 0;
@@ -113,14 +116,23 @@ void SlotManager::process() {
     }
 
     uint64_t currentTimeUs = getCurrentSyncTimeUs();
-    uint64_t elapsedTimeUs = currentTimeUs - lastSlotTimeUs_;
     uint64_t slotIntervalUs = slotIntervalMs_ * 1000ULL;
-
-    // 检查是否需要切换到下一个时隙
-    if (elapsedTimeUs >= slotIntervalUs) {
-        uint8_t nextSlot = (currentSlotInfo_.currentSlot + 1) % totalSlotCount_;
-        switchToSlot(nextSlot);
-        lastSlotTimeUs_ = currentTimeUs;
+    
+    // 基于绝对时间计算当前应该处于哪个时隙
+    uint64_t elapsedFromStartUs = currentTimeUs - startTimeUs_;
+    uint8_t expectedSlot = (elapsedFromStartUs / slotIntervalUs) % totalSlotCount_;
+    
+    // 检查是否需要切换到新的时隙
+    if (expectedSlot != currentSlotInfo_.currentSlot) {
+        // 可能跳过了多个时隙，直接切换到正确的时隙
+        switchToSlot(expectedSlot);
+        
+        // 计算这个时隙的理论开始时间（避免累积误差）
+        uint64_t slotCycles = elapsedFromStartUs / slotIntervalUs;
+        lastSlotTimeUs_ = startTimeUs_ + slotCycles * slotIntervalUs;
+        
+        elog_d("SlotManager", "Absolute time sync - Expected slot: %d, Elapsed: %lu us", 
+               expectedSlot, (unsigned long)elapsedFromStartUs);
     }
 }
 

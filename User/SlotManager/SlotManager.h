@@ -132,6 +132,7 @@ private:
     bool isConfigured_;         // 是否已配置
     bool isFirstProcess_;       // 是否是第一次process调用
     uint64_t lastSlotTimeUs_;   // 上次时隙切换时间（微秒）
+    uint64_t startTimeUs_;      // 时隙调度开始的绝对时间（微秒）
     SlotInfo currentSlotInfo_;  // 当前时隙信息
 
     // 回调函数

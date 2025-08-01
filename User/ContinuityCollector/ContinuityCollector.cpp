@@ -158,10 +158,7 @@ void ContinuityCollector::processSlot(uint8_t slotNumber, uint8_t activePin,
     // 配置当前时隙的引脚状态
     configurePinsForSlot(activePin, isActive);
 
-    // 如果不是激活引脚则等待5ms等待激活引脚稳定后再采集数据
-    if (!isActive) {
-        delayMs(5);
-    }
+    delayMs(3);
 
     // 读取当前时隙的所有引脚状态
     std::vector<ContinuityState> slotData;
