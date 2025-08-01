@@ -32,6 +32,23 @@
 #include "cmsis_os2.h"
 #include "usart.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Forward declaration for SlaveDevice
+typedef struct SlaveDevice SlaveDevice;
+
+// Global pointer to SlaveDevice instance for synchronized timestamp
+static void* g_slave_device_instance = NULL;
+
+// Function pointer to get synchronized timestamp from SlaveDevice
+static uint32_t (*get_sync_timestamp_ms_func)(void* device) = NULL;
+
+#ifdef __cplusplus
+}
+#endif
+
 extern osSemaphoreId_t elog_lockHandle;
 extern osSemaphoreId_t elog_asyncHandle;
 extern osSemaphoreId_t elog_dma_lockHandle;
@@ -79,13 +96,33 @@ void elog_port_output_lock(void) {
 void elog_port_output_unlock(void) { osSemaphoreRelease(elog_lockHandle); }
 
 /**
+ * Set SlaveDevice instance for synchronized timestamp
+ *
+ * @param device pointer to SlaveDevice instance
+ * @param timestamp_func function to get synchronized timestamp in milliseconds
+ */
+void elog_set_slave_device(void* device, uint32_t (*timestamp_func)(void*)) {
+    g_slave_device_instance = device;
+    get_sync_timestamp_ms_func = timestamp_func;
+}
+
+/**
  * get current time interface
  *
  * @return current time
  */
 const char *elog_port_get_time(void) {
     static char cur_system_time[16] = "";
-    snprintf(cur_system_time, 16, "%lu", osKernelGetTickCount());
+    
+    // Use synchronized timestamp if SlaveDevice is available
+    if (g_slave_device_instance != NULL && get_sync_timestamp_ms_func != NULL) {
+        uint32_t sync_timestamp_ms = get_sync_timestamp_ms_func(g_slave_device_instance);
+        snprintf(cur_system_time, 16, "%lu", sync_timestamp_ms);
+    } else {
+        // Fallback to system tick count
+        snprintf(cur_system_time, 16, "%lu", osKernelGetTickCount());
+    }
+    
     return cur_system_time;
 }
 
