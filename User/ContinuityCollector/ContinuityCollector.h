@@ -25,35 +25,76 @@ struct GpioPin {
         : port(p), pin(pin_num) {}
 };
 
-// 硬件定义的引脚映射表 (64个引脚)
-static constexpr uint8_t HARDWARE_PIN_MAP[64] = {
-    // PA3 - PA12, PA15
-    3, 4, 5, 6, 7,           // PA3-PA7
-    8, 9, 10, 11, 12, 15,    // PA8-PA12, PA15
-
-    // PB0-1, PB10-PB15
-    16 + 0, 16 + 1,                                          // PB0-PB1
-    16 + 10, 16 + 11, 16 + 12, 16 + 13, 16 + 14, 16 + 15,    // PB10-PB15
-
-    // PC4-PC11
-    32 + 4, 32 + 5, 32 + 6, 32 + 7, 32 + 8, 32 + 9, 32 + 10,
-    32 + 11,    // PC4-PC11
-
-    // PD0-1, PD3-PD4, PD8-PD15
-    48 + 0, 48 + 1, 48 + 3, 48 + 4,        // PD0-1, PD3-PD4
-    48 + 8, 48 + 9, 48 + 10, 48 + 11,      // PD8-PD11
-    48 + 12, 48 + 13, 48 + 14, 48 + 15,    // PD12-PD15
-
-    // PE7-PE15
-    64 + 7, 64 + 8, 64 + 9, 64 + 10, 64 + 11, 64 + 12, 64 + 13, 64 + 14,
-    64 + 15,    // PE7-PE15
-
-    // PF11-PF15
-    80 + 11, 80 + 12, 80 + 13, 80 + 14, 80 + 15,    // PF11-PF15
-
-    // PG0-PG8
-    96 + 0, 96 + 1, 96 + 2, 96 + 3, 96 + 4, 96 + 5, 96 + 6, 96 + 7,
-    96 + 8    // PG0-PG8
+// 使用CubeMX生成的宏定义的引脚映射表 (64个引脚)
+static const struct {
+    GPIO_TypeDef* port;
+    uint16_t pin;
+} HARDWARE_PIN_MAP[64] = {
+    // IO1-IO64 使用CubeMX生成的宏定义
+    {IO1_GPIO_Port, IO1_Pin},      // IO1
+    {IO2_GPIO_Port, IO2_Pin},      // IO2
+    {IO3_GPIO_Port, IO3_Pin},      // IO3
+    {IO4_GPIO_Port, IO4_Pin},      // IO4
+    {IO5_GPIO_Port, IO5_Pin},      // IO5
+    {IO6_GPIO_Port, IO6_Pin},      // IO6
+    {IO7_GPIO_Port, IO7_Pin},      // IO7
+    {IO8_GPIO_Port, IO8_Pin},      // IO8
+    {IO9_GPIO_Port, IO9_Pin},      // IO9
+    {IO10_GPIO_Port, IO10_Pin},    // IO10
+    {IO11_GPIO_Port, IO11_Pin},    // IO11
+    {IO12_GPIO_Port, IO12_Pin},    // IO12
+    {IO13_GPIO_Port, IO13_Pin},    // IO13
+    {IO14_GPIO_Port, IO14_Pin},    // IO14
+    {IO15_GPIO_Port, IO15_Pin},    // IO15
+    {IO16_GPIO_Port, IO16_Pin},    // IO16
+    {IO17_GPIO_Port, IO17_Pin},    // IO17
+    {IO18_GPIO_Port, IO18_Pin},    // IO18
+    {IO19_GPIO_Port, IO19_Pin},    // IO19
+    {IO20_GPIO_Port, IO20_Pin},    // IO20
+    {IO21_GPIO_Port, IO21_Pin},    // IO21
+    {IO22_GPIO_Port, IO22_Pin},    // IO22
+    {IO23_GPIO_Port, IO23_Pin},    // IO23
+    {IO24_GPIO_Port, IO24_Pin},    // IO24
+    {IO25_GPIO_Port, IO25_Pin},    // IO25
+    {IO26_GPIO_Port, IO26_Pin},    // IO26
+    {IO27_GPIO_Port, IO27_Pin},    // IO27
+    {IO28_GPIO_Port, IO28_Pin},    // IO28
+    {IO29_GPIO_Port, IO29_Pin},    // IO29
+    {IO30_GPIO_Port, IO30_Pin},    // IO30
+    {IO31_GPIO_Port, IO31_Pin},    // IO31
+    {IO32_GPIO_Port, IO32_Pin},    // IO32
+    {IO33_GPIO_Port, IO33_Pin},    // IO33
+    {IO34_GPIO_Port, IO34_Pin},    // IO34
+    {IO35_GPIO_Port, IO35_Pin},    // IO35
+    {IO36_GPIO_Port, IO36_Pin},    // IO36
+    {IO37_GPIO_Port, IO37_Pin},    // IO37
+    {IO38_GPIO_Port, IO38_Pin},    // IO38
+    {IO39_GPIO_Port, IO39_Pin},    // IO39
+    {IO40_GPIO_Port, IO40_Pin},    // IO40
+    {IO41_GPIO_Port, IO41_Pin},    // IO41
+    {IO42_GPIO_Port, IO42_Pin},    // IO42
+    {IO43_GPIO_Port, IO43_Pin},    // IO43
+    {IO44_GPIO_Port, IO44_Pin},    // IO44
+    {IO45_GPIO_Port, IO45_Pin},    // IO45
+    {IO46_GPIO_Port, IO46_Pin},    // IO46
+    {IO47_GPIO_Port, IO47_Pin},    // IO47
+    {IO48_GPIO_Port, IO48_Pin},    // IO48
+    {IO49_GPIO_Port, IO49_Pin},    // IO49
+    {IO50_GPIO_Port, IO50_Pin},    // IO50
+    {IO51_GPIO_Port, IO51_Pin},    // IO51
+    {IO52_GPIO_Port, IO52_Pin},    // IO52
+    {IO53_GPIO_Port, IO53_Pin},    // IO53
+    {IO54_GPIO_Port, IO54_Pin},    // IO54
+    {IO55_GPIO_Port, IO55_Pin},    // IO55
+    {IO56_GPIO_Port, IO56_Pin},    // IO56
+    {IO57_GPIO_Port, IO57_Pin},    // IO57
+    {IO58_GPIO_Port, IO58_Pin},    // IO58
+    {IO59_GPIO_Port, IO59_Pin},    // IO59
+    {IO60_GPIO_Port, IO60_Pin},    // IO60
+    {IO61_GPIO_Port, IO61_Pin},    // IO61
+    {IO62_GPIO_Port, IO62_Pin},    // IO62
+    {IO63_GPIO_Port, IO63_Pin},    // IO63
+    {IO64_GPIO_Port, IO64_Pin}     // IO64
 };
 
 // 导通数据采集配置
@@ -77,9 +118,9 @@ struct CollectorConfig {
                logicalPin);
 
         if (logicalPin < 64) {
-            uint8_t physicalPin = HARDWARE_PIN_MAP[logicalPin];
-            elog_v("CollectorConfig", "returning physicalPin: %d", physicalPin);
-            return physicalPin;
+            // 现在直接返回逻辑引脚号，因为映射表现在直接包含GPIO信息
+            elog_v("CollectorConfig", "returning logicalPin: %d", logicalPin);
+            return logicalPin;
         }
 
         elog_v("CollectorConfig", "logicalPin out of range, returning: %d",
@@ -87,7 +128,7 @@ struct CollectorConfig {
         return logicalPin;    // 如果超出范围，返回逻辑引脚号
     }
 
-    // 将物理引脚号转换为GPIO端口和引脚
+    // 将逻辑引脚号转换为GPIO端口和引脚
     GpioPin getGpioPin(uint8_t logicalPin) const;
 };
 

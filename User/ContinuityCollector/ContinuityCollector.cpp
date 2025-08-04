@@ -11,10 +11,6 @@
 #include "hptimer.hpp"
 #include "task.h"
 
-// GPIO端口映射表
-static GPIO_TypeDef *GPIO_PORTS[] = {GPIOA, GPIOB, GPIOC, GPIOD,
-                                     GPIOE, GPIOF, GPIOG};
-
 // 端口时钟使能函数
 static void enableGpioPortClock(GPIO_TypeDef *port) {
     if (port == GPIOA)
@@ -33,22 +29,15 @@ static void enableGpioPortClock(GPIO_TypeDef *port) {
         __HAL_RCC_GPIOG_CLK_ENABLE();
 }
 
-// 将物理引脚号转换为GPIO端口和引脚
+// 将逻辑引脚号转换为GPIO端口和引脚
 GpioPin CollectorConfig::getGpioPin(uint8_t logicalPin) const {
-    uint8_t physicalPin = getPhysicalPin(logicalPin);
-
-    // 计算端口索引和引脚号
-    uint8_t portIndex = physicalPin / 16;
-    uint8_t pinNumber = physicalPin % 16;
-
-    if (portIndex < 7) {
-        GPIO_TypeDef *port = GPIO_PORTS[portIndex];
-        uint16_t pin = (1 << pinNumber);
-        return GpioPin(port, pin);
+    if (logicalPin < 64) {
+        // 直接使用映射表中的GPIO信息
+        return GpioPin(HARDWARE_PIN_MAP[logicalPin].port, HARDWARE_PIN_MAP[logicalPin].pin);
     }
 
     // 默认返回PA0
-    elog_e("CollectorConfig", "Invalid physical pin: %d", physicalPin);
+    elog_e("CollectorConfig", "Invalid logical pin: %d", logicalPin);
     return GpioPin(GPIOA, GPIO_PIN_0);
 }
 
