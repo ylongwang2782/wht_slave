@@ -59,14 +59,14 @@ static constexpr uint8_t HARDWARE_PIN_MAP[64] = {
 // 导通数据采集配置
 struct CollectorConfig {
     uint8_t num;                  // 导通检测数量 (本设备负责的引脚数量)
-    uint8_t totalDetectionNum;    // 总检测数量 (整个采集周期的时隙数量)
+    uint16_t totalDetectionNum;    // 总检测数量 (整个采集周期的时隙数量)
 
-    CollectorConfig(uint8_t n = 2, uint8_t totalDetNum = 4)
+    CollectorConfig(uint8_t n = 2, uint16_t totalDetNum = 4)
         : num(n),
           totalDetectionNum(totalDetNum) {
         if (num > 64) num = 64;
-        if (totalDetectionNum == 0 || totalDetectionNum > 64)
-            totalDetectionNum = 64;
+        if (totalDetectionNum == 0 || totalDetectionNum > 65535)
+            totalDetectionNum = 65535;
 
         elog_v("CollectorConfig", "Constructor: num=%d, totalDetectionNum=%d", num, totalDetectionNum);
     }
@@ -104,7 +104,7 @@ enum class CollectionStatus : uint8_t {
 
 // 采集进度回调函数类型
 using ProgressCallback =
-    std::function<void(uint8_t cycle, uint8_t totalCycles)>;
+    std::function<void(uint16_t cycle, uint16_t totalCycles)>;
 
 // 时间同步回调函数类型 - 用于获取同步时间
 using SyncTimeCallback = std::function<uint64_t()>;
@@ -120,7 +120,7 @@ class ContinuityCollector {
     ContinuityMatrix dataMatrix_;    // 数据矩阵
 
     CollectionStatus status_;              // 采集状态
-    uint8_t currentCycle_;                 // 当前周期
+    uint16_t currentCycle_;                 // 当前周期
     ProgressCallback progressCallback_;    // 进度回调
 
     // 引脚状态跟踪
@@ -160,22 +160,22 @@ class ContinuityCollector {
     void stopCollection();
 
     // 处理时隙事件（由外部时隙管理器调用）
-    void processSlot(uint8_t slotNumber, uint8_t activePin, bool isActive);
+    void processSlot(uint16_t slotNumber, uint8_t activePin, bool isActive);
 
     // 获取采集状态
     CollectionStatus getStatus() const;
 
     // 获取当前周期
-    uint8_t getCurrentCycle() const;
+    uint16_t getCurrentCycle() const;
 
     // 获取总周期数
-    uint8_t getTotalCycles() const;
+    uint16_t getTotalCycles() const;
 
     // 获取采集数据
     ContinuityMatrix getDataMatrix() const;
 
     // 获取指定周期的数据
-    std::vector<ContinuityState> getCycleData(uint8_t cycle) const;
+    std::vector<ContinuityState> getCycleData(uint16_t cycle) const;
 
     // 检查是否有新数据
     bool hasNewData() const;

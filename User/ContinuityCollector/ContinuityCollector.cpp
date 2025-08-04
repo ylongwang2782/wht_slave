@@ -72,7 +72,7 @@ bool ContinuityCollector::configure(const CollectorConfig &config) {
     }
 
     if (config.totalDetectionNum == 0 ||
-        config.totalDetectionNum > MAX_GPIO_PINS) {
+        config.totalDetectionNum > 65535) {
         return false;
     }
 
@@ -142,7 +142,7 @@ void ContinuityCollector::delayMs(uint32_t ms) {
 }
 
 // 处理时隙事件（由外部时隙管理器调用）
-void ContinuityCollector::processSlot(uint8_t slotNumber, uint8_t activePin,
+void ContinuityCollector::processSlot(uint16_t slotNumber, uint8_t activePin,
                                       bool isActive) {
     // 只在运行状态下处理
     if (status_ != CollectionStatus::RUNNING) {
@@ -201,15 +201,15 @@ void ContinuityCollector::processSlot(uint8_t slotNumber, uint8_t activePin,
 
 CollectionStatus ContinuityCollector::getStatus() const { return status_; }
 
-uint8_t ContinuityCollector::getCurrentCycle() const { return currentCycle_; }
+uint16_t ContinuityCollector::getCurrentCycle() const { return currentCycle_; }
 
-uint8_t ContinuityCollector::getTotalCycles() const {
+uint16_t ContinuityCollector::getTotalCycles() const {
     return config_.totalDetectionNum;
 }
 
 float ContinuityCollector::getProgress() const {
-    uint8_t current = getCurrentCycle();
-    uint8_t total = getTotalCycles();
+    uint16_t current = getCurrentCycle();
+    uint16_t total = getTotalCycles();
     if (total == 0) return 0.0f;
     return static_cast<float>(current * 100) / total;
 }
@@ -262,7 +262,7 @@ std::vector<uint8_t> ContinuityCollector::getDataVector() const {
 }
 
 std::vector<ContinuityState> ContinuityCollector::getCycleData(
-    uint8_t cycle) const {
+    uint16_t cycle) const {
     if (cycle < dataMatrix_.size()) {
         return dataMatrix_[cycle];
     }
