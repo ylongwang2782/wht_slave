@@ -50,7 +50,7 @@ SlaveDevice::SlaveDevice()
     }
 
     // set MTU = 1016
-    processor.setMTU(FRAME_LEN_MAX);
+    processor.setMTU(800);
 
     // Initialize message handlers
     initializeMessageHandlers();

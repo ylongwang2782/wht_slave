@@ -73,3 +73,4 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
 # 设置cmake install指令，烧录程序
 include(${PROJECT_SOURCE_DIR}/CMake/flash_by_install.cmake)
+include(${PROJECT_SOURCE_DIR}/CMake/create_bin.cmake)
