@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           cmake --preset debug
-          cmake --build build
+          cmake --build --preset debug
 
       - name: Get Version from Git
         id: get_version
