@@ -1,28 +1,30 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file    gpio.c
-  * @brief   This file provides code for the configuration
-  *          of all used GPIO pins.
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file    gpio.c
+ * @brief   This file provides code for the configuration
+ *          of all used GPIO pins.
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2025 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
 #include "gpio.h"
 
 /* USER CODE BEGIN 0 */
+#include "elog.h"
 
+extern void uwb_int_handler_wrapper(void);
 /* USER CODE END 0 */
 
 /*----------------------------------------------------------------------------*/
@@ -55,13 +57,16 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, UWB_RST_Pin|SPI4_NSS_Pin|ELV2_Pin|VALVE1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, UWB_RST_Pin|SPI4_NSS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(RUN_LED_GPIO_Port, RUN_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOF, UWB_EN_Pin|RS485_CTRL_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(UWB_EN_GPIO_Port, UWB_EN_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(RS485_CTRL_GPIO_Port, RS485_CTRL_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOG, LED1_Pin|LED2_Pin|LED3_Pin, GPIO_PIN_RESET);
@@ -69,11 +74,14 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(ELV3_GPIO_Port, ELV3_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : UWB_RST_Pin SPI4_NSS_Pin ELV2_Pin VALVE1_Pin */
-  GPIO_InitStruct.Pin = UWB_RST_Pin|SPI4_NSS_Pin|ELV2_Pin|VALVE1_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOE, ELV2_Pin|VALVE1_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : UWB_RST_Pin SPI4_NSS_Pin */
+  GPIO_InitStruct.Pin = UWB_RST_Pin|SPI4_NSS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : RUN_LED_Pin */
@@ -87,7 +95,7 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = UWB_EN_Pin|RS485_CTRL_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
   /*Configure GPIO pins : UWB_PULSE_Pin DIP8_Pin DIP7_Pin DIP6_Pin
@@ -152,16 +160,12 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : IO17_Pin */
-  GPIO_InitStruct.Pin = IO17_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(IO17_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : IO18_Pin IO19_Pin IO20_Pin IO21_Pin
-                           IO22_Pin IO23_Pin IO24_Pin IO25_Pin */
-  GPIO_InitStruct.Pin = IO18_Pin|IO19_Pin|IO20_Pin|IO21_Pin
-                          |IO22_Pin|IO23_Pin|IO24_Pin|IO25_Pin;
+  /*Configure GPIO pins : IO17_Pin IO18_Pin IO19_Pin IO20_Pin
+                           IO21_Pin IO22_Pin IO23_Pin IO24_Pin
+                           IO25_Pin */
+  GPIO_InitStruct.Pin = IO17_Pin|IO18_Pin|IO19_Pin|IO20_Pin
+                          |IO21_Pin|IO22_Pin|IO23_Pin|IO24_Pin
+                          |IO25_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
@@ -187,7 +191,7 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : UWB_INT_Pin */
   GPIO_InitStruct.Pin = UWB_INT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(UWB_INT_GPIO_Port, &GPIO_InitStruct);
 
@@ -198,8 +202,28 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(ELV3_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : ELV2_Pin VALVE1_Pin */
+  GPIO_InitStruct.Pin = ELV2_Pin|VALVE1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 6, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+
 }
 
 /* USER CODE BEGIN 2 */
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  if (GPIO_Pin == UWB_INT_Pin)
+  {
+    elog_i("EXTI", "INT low");
+    uwb_int_handler_wrapper();
+  }
+}
 
 /* USER CODE END 2 */

@@ -2,6 +2,7 @@
 #include "cmsis_os2.h"
 #include "elog.h"
 #include "gpio.h"
+#include "main.h"
 #include "uwb_task.h"
 
 extern void UWB_Task_Init(void);
@@ -25,15 +26,18 @@ extern "C" uint32_t slave_device_get_sync_timestamp_ms(void* device) {
 extern "C" int main_app(void) {
     UWB_Task_Init();
 
-    SlaveDevice slaveDevice;
+    // HAL_GPIO_WritePin(UWB_EN_GPIO_Port, UWB_EN_Pin, GPIO_PIN_SET);
+    // HAL_GPIO_WritePin(UWB_RST_GPIO_Port, UWB_RST_Pin, GPIO_PIN_SET);
+
+    // SlaveDevice slaveDevice;
     
-    // Register SlaveDevice with easylogger for synchronized timestamps
-    g_global_slave_device = &slaveDevice;
-    elog_set_slave_device(&slaveDevice, slave_device_get_sync_timestamp_ms);
+    // // Register SlaveDevice with easylogger for synchronized timestamps
+    // g_global_slave_device = &slaveDevice;
+    // elog_set_slave_device(&slaveDevice, slave_device_get_sync_timestamp_ms);
     
-    elog_i(TAG, "SlaveDevice registered with easylogger for synchronized timestamps");
+    // elog_i(TAG, "SlaveDevice registered with easylogger for synchronized timestamps");
     
-    slaveDevice.run();
+    // slaveDevice.run();
 
     for (;;) {
         elog_i(TAG, "slave_app running");

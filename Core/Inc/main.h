@@ -239,6 +239,7 @@ void Error_Handler(void);
 #define P_SENSOR_GPIO_Port GPIOB
 #define UWB_INT_Pin GPIO_PIN_6
 #define UWB_INT_GPIO_Port GPIOB
+#define UWB_INT_EXTI_IRQn EXTI9_5_IRQn
 #define UWB_RDY_Pin GPIO_PIN_7
 #define UWB_RDY_GPIO_Port GPIOB
 #define ELV4_Pin GPIO_PIN_8
