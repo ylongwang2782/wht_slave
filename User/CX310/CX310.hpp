@@ -676,7 +676,7 @@ class CX310 {
         init_success &=
             set_psdu_data_rate(PARAM_PSDU_DATA_RATE_7_8);    // PSDU data rate 4
 
-        init_success &= set_tx_power(1);    // TX power 5
+        init_success &= set_tx_power(3);    // TX power 5
         return 0;
     }
 
@@ -686,7 +686,7 @@ class CX310 {
         if (uwbs_sta == READY) {
             return true;
         }
-        elog_e(TAG, "UWBS not ready");
+        // elog_e(TAG, "UWBS not ready");
         return false;
     }
     void __uwbs_state_machine() {

@@ -61,7 +61,7 @@
  /* enable asynchronous output mode */
  #define ELOG_ASYNC_OUTPUT_ENABLE
  /* the highest output level for async mode, other level will sync output */
- #define ELOG_ASYNC_OUTPUT_LVL                    ELOG_LVL_INFO
+ #define ELOG_ASYNC_OUTPUT_LVL                    ELOG_LVL_VERBOSE
  /* buffer size for asynchronous output mode */
  #define ELOG_ASYNC_OUTPUT_BUF_SIZE               (ELOG_LINE_BUF_SIZE * 100)
  /* each asynchronous output's log which must end with newline sign */

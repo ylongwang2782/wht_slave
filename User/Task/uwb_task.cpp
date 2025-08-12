@@ -39,6 +39,7 @@ typedef struct {
 static osMessageQueueId_t uwb_txQueue;    // UWB发送队列
 static osMessageQueueId_t uwb_rxQueue;    // UWB接收队列
 static osThreadId_t uwbCommTaskHandle;
+static osSemaphoreId_t uwb_txSemaphore;    // UWB发送信号量
 
 // 接收数据回调函数指针
 typedef void (*uwb_rx_callback_t)(const uwb_rx_msg_t *msg);
@@ -89,46 +90,49 @@ static void uwb_comm_task(void *argument) {
     dwt_rxenable(DWT_START_RX_IMMEDIATE);
 
     while (1) {
-        // 检查是否有发送消息
-        if (osMessageQueueGet(uwb_txQueue, &tx_msg, NULL, 0) == osOK) {
-            switch (tx_msg.type) {
-                case UWB_MSG_TYPE_SEND_DATA:
-                    dwt_forcetrxoff();    // 保证发送前DW1000已空闲
+        // 等待发送信号量，确保队列中有完整的数据
+        if (osSemaphoreAcquire(uwb_txSemaphore, 0) == osOK) {
+            // 从队列获取发送消息
+            if (osMessageQueueGet(uwb_txQueue, &tx_msg, NULL, 0) == osOK) {
+                switch (tx_msg.type) {
+                    case UWB_MSG_TYPE_SEND_DATA:
+                        dwt_forcetrxoff();    // 保证发送前DW1000已空闲
 
-                    // 发送UWB数据
-                    // DW1000会自动添加2字节CRC，所以实际写入的数据长度是用户数据长度
-                    // 但是dwt_writetxfctrl需要包含CRC的总长度
-                    dwt_writetxdata(tx_msg.data_len + 2, tx_msg.data, 0);
-                    dwt_writetxfctrl(tx_msg.data_len + 2, 0, 1);
-                    dwt_starttx(DWT_START_TX_IMMEDIATE);
+                        // 发送UWB数据
+                        // DW1000会自动添加2字节CRC，所以实际写入的数据长度是用户数据长度
+                        // 但是dwt_writetxfctrl需要包含CRC的总长度
+                        dwt_writetxdata(tx_msg.data_len + 2, tx_msg.data, 0);
+                        dwt_writetxfctrl(tx_msg.data_len + 2, 0, 1);
+                        dwt_starttx(DWT_START_TX_IMMEDIATE);
 
-                    // 等待发送完成
-                    while (
-                        !(dwt_read32bitreg(SYS_STATUS_ID) & SYS_STATUS_TXFRS)) {
-                        osDelay(1);
-                    }
-                    dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);
+                        // 等待发送完成
+                        while (!(dwt_read32bitreg(SYS_STATUS_ID) &
+                                 SYS_STATUS_TXFRS)) {
+                            osDelay(1);
+                        }
+                        dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS);
 
-                    // 发送完成后重新启动接收
-                    dwt_rxenable(DWT_START_RX_IMMEDIATE);
+                        // 发送完成后重新启动接收
+                        dwt_rxenable(DWT_START_RX_IMMEDIATE);
 
-                    // elog_i(TAG, "Sent %d bytes done", tx_msg.data_len);
-                    break;
+                        // elog_i(TAG, "Sent %d bytes done", tx_msg.data_len);
+                        break;
 
-                case UWB_MSG_TYPE_CONFIG:
-                    // 重新配置DW1000
-                    dwt_configure(&config);
-                    dwt_rxenable(DWT_START_RX_IMMEDIATE);
-                    elog_i(TAG, "Config updated");
-                    break;
+                    case UWB_MSG_TYPE_CONFIG:
+                        // 重新配置DW1000
+                        dwt_configure(&config);
+                        dwt_rxenable(DWT_START_RX_IMMEDIATE);
+                        elog_i(TAG, "Config updated");
+                        break;
 
-                case UWB_MSG_TYPE_SET_MODE:
-                    // 设置工作模式（预留接口）
-                    elog_i(TAG, "Mode set");
-                    break;
+                    case UWB_MSG_TYPE_SET_MODE:
+                        // 设置工作模式（预留接口）
+                        elog_i(TAG, "Mode set");
+                        break;
 
-                default:
-                    break;
+                    default:
+                        break;
+                }
             }
         }
 
@@ -195,18 +199,23 @@ static void uwb_comm_task(void *argument) {
     uwb.set_recv_mode();
 
     for (;;) {
-        if (osMessageQueueGet(uwb_txQueue, &tx_msg, NULL, 0) == osOK) {
-            // 发送UWB数据
-            std::vector<uint8_t> tx_data(tx_msg.data,
-                                         tx_msg.data + tx_msg.data_len);
-            uwb.data_transmit(tx_data);
-            // 发送完成后重新启动接收
-            uwb.set_recv_mode();
+        // 等待发送信号量，确保队列中有完整的数据
+        if (osSemaphoreAcquire(uwb_txSemaphore, 0) == osOK) {
+            // 从队列获取发送消息
+            if (osMessageQueueGet(uwb_txQueue, &tx_msg, NULL, 0) == osOK) {
+                // 发送UWB数据
+                std::vector<uint8_t> tx_data(tx_msg.data,
+                                             tx_msg.data + tx_msg.data_len);
+                elog_i(TAG, "tx begin");
+                uwb.data_transmit(tx_data);
+                // 发送完成后重新启动接收
+                // uwb.set_recv_mode();
+            }
         }
 
         if (uwb.get_recv_data(buffer)) {
-            uwb.set_recv_mode();
-            elog_w(TAG, "buffer size: %d", buffer.size());
+            // uwb.set_recv_mode();
+            elog_w(TAG, "rx size: %d", buffer.size());
             rx_msg.data_len = buffer.size();
             for (int i = 0; i < rx_msg.data_len; i++) {
                 rx_msg.data[i] = buffer[i];
@@ -214,6 +223,7 @@ static void uwb_comm_task(void *argument) {
             rx_msg.timestamp = osKernelGetTickCount();
             rx_msg.status_reg = 0;
             osMessageQueuePut(uwb_rxQueue, &rx_msg, 0, 0);
+            osDelay(20);
         }
 
         uwb.update();
@@ -238,11 +248,18 @@ void UWB_Task_Init(void) {
         elog_e(TAG, "Failed to create UWB RX queue");
         return;
     }
+
+    // 创建发送信号量（计数信号量，初始值为0）
+    uwb_txSemaphore = osSemaphoreNew(TX_QUEUE_SIZE, 0, NULL);
+    if (uwb_txSemaphore == NULL) {
+        elog_e(TAG, "Failed to create UWB TX semaphore");
+        return;
+    }
     // 创建UWB通信任务
     const osThreadAttr_t uwbTask_attributes = {
         .name = "uwbCommTask",
         .stack_size = 512 * 16,
-        .priority = (osPriority_t)osPriorityRealtime,
+        .priority = (osPriority_t)osPriorityNormal,
     };
     uwbCommTaskHandle = osThreadNew(uwb_comm_task, NULL, &uwbTask_attributes);
 
@@ -273,6 +290,9 @@ int UWB_SendData(const uint8_t *data, uint16_t len, uint32_t delay_ms) {
     if (osMessageQueuePut(uwb_txQueue, &msg, 0, 100) != osOK) {
         return -3;    // 队列满或超时
     }
+
+    // 队列数据放入成功后，释放信号量通知通信任务
+    osSemaphoreRelease(uwb_txSemaphore);
 
     return 0;    // 成功
 }
@@ -328,6 +348,9 @@ int UWB_Reconfigure(void) {
     if (osMessageQueuePut(uwb_txQueue, &msg, 0, 100) != osOK) {
         return -1;    // 队列满或超时
     }
+
+    // 配置消息放入队列后，释放信号量通知通信任务
+    osSemaphoreRelease(uwb_txSemaphore);
 
     return 0;    // 成功
 }
