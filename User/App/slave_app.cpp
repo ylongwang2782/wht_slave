@@ -4,6 +4,7 @@
 #include "gpio.h"
 #include "main.h"
 #include "uwb_task.h"
+#include "adc.h"
 
 extern void UWB_Task_Init(void);
 
@@ -36,8 +37,19 @@ extern "C" int main_app(void) {
     
     slaveDevice.run();
 
+    // uint16_t adc_value;
+    // float battery_voltage;
+
+    // HAL_ADC_Start(&hadc1);
+    // HAL_ADC_PollForConversion(&hadc1, 10);
+    // adc_value = HAL_ADC_GetValue(&hadc1);
+
+    // battery_voltage = (adc_value / 4095.0f) * 3.15f * 2.0f;
+    
     for (;;) {
-        elog_i(TAG, "slave_app running");
+        // uint16_t voltage_mv = (uint16_t)(battery_voltage * 1000); // 转成 mV
+        // elog_i(TAG, "Voltage: %d.%03d V", voltage_mv / 1000, voltage_mv % 1000);
+        // elog_i(TAG, "slave_app running");
         HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
         osDelay(500);
     }

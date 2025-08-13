@@ -204,7 +204,10 @@ class SlaveDevice {
         void task() override;
         void updateDeviceStatus();
         static constexpr const char TAG[] = "AccessoryTask";
-        static constexpr uint32_t UPDATE_INTERVAL_MS = 100;    // 状态更新间隔
+        static constexpr uint32_t UPDATE_INTERVAL_MS = 300;    // 状态更新间隔
+        static constexpr uint32_t BATTERY_UPDATE_INTERVAL_MS = 1000;    // 电池电压更新间隔
+        static constexpr float BATTERY_VOLTAGE_THRESHOLD = 3.50f;    // 电池电压阈值
+        static constexpr float BATTERY_VOLTAGE_THRESHOLD_OFFSET = 0.05f;    // 电池电压阈值偏移
 
         HalButton key1;
         HalButton unlockBtn;
@@ -216,6 +219,9 @@ class SlaveDevice {
         DipSwitchInfo dipInfo;
         HalDipSwitch dipSwitch;
         LockController lockController;
+
+        uint16_t adc_value;
+        float battery_voltage;
     };
 
     std::unique_ptr<DataCollectionTask> dataCollectionTask;

@@ -120,12 +120,6 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : VBAT_DET_Pin */
-  GPIO_InitStruct.Pin = VBAT_DET_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(VBAT_DET_GPIO_Port, &GPIO_InitStruct);
-
   /*Configure GPIO pins : IO1_Pin IO2_Pin IO3_Pin IO4_Pin
                            IO5_Pin IO51_Pin IO52_Pin IO53_Pin
                            IO54_Pin */

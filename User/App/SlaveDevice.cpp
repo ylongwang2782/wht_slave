@@ -4,9 +4,12 @@
 #include <cstdio>
 
 #include "Master2SlaveMessageHandlers.h"
+#include "adc.h"
+#include "cmsis_os2.h"
 #include "elog.h"
 #include "hal_uid.hpp"
 #include "hptimer.hpp"
+#include "main.h"
 #include "uwb_task.h"
 
 using namespace WhtsProtocol;
@@ -327,7 +330,8 @@ void SlaveDevice::run() {
     while (1) {
         // elog_d(TAG, "hptimer ms: %d", hal_hptimer_get_ms());
 
-        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+        HAL_GPIO_TogglePin(RUN_LED_GPIO_Port, RUN_LED_Pin);
+        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
         TaskBase::delay(500);
     }
 }
@@ -655,7 +659,7 @@ void SlaveDevice::AccessoryTask::task() {
         // 更新设备状态
         updateDeviceStatus();
 
-        TaskBase::delay(UPDATE_INTERVAL_MS);
+        osDelay(UPDATE_INTERVAL_MS);
     }
 }
 
@@ -666,10 +670,26 @@ void SlaveDevice::AccessoryTask::updateDeviceStatus() {
     parent.deviceStatus.accessory2 = auxBtn2.isPressed();
     parent.deviceStatus.electromagneticLock1 =
         (lockController.getState() == LockState::Locked);
-    parent.deviceStatus.electromagneticLock2 = false;    // 当前只有一个锁
+    parent.deviceStatus.electromagneticLock2 = false;
     parent.deviceStatus.electromagnetUnlockButton = unlockBtn.isPressed();
-    parent.deviceStatus.sleeveLimit = false;        // 暂时未实现
-    parent.deviceStatus.batteryLowAlarm = false;    // 暂时未实现
+    parent.deviceStatus.sleeveLimit = false;
+
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 10);
+    adc_value = HAL_ADC_GetValue(&hadc1);
+    battery_voltage = (adc_value / 4095.0f) * 3.15f * 2.0f;
+
+    // 判断逻辑（带滞回）
+    if (!parent.deviceStatus.batteryLowAlarm &&
+        battery_voltage < BATTERY_VOLTAGE_THRESHOLD) {
+        parent.deviceStatus.batteryLowAlarm = true;
+        HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
+    } else if (parent.deviceStatus.batteryLowAlarm &&
+               battery_voltage > BATTERY_VOLTAGE_THRESHOLD +
+                                     BATTERY_VOLTAGE_THRESHOLD_OFFSET) {
+        parent.deviceStatus.batteryLowAlarm = false;
+        HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
+    }
 }
 
 }    // namespace SlaveApp
