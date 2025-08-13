@@ -7,6 +7,7 @@
 #include "elog.h"
 #include "hal_uid.hpp"
 #include "hptimer.hpp"
+#include "main.h"
 #include "uwb_task.h"
 
 using namespace WhtsProtocol;
@@ -327,7 +328,8 @@ void SlaveDevice::run() {
     while (1) {
         // elog_d(TAG, "hptimer ms: %d", hal_hptimer_get_ms());
 
-        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+        HAL_GPIO_TogglePin(RUN_LED_GPIO_Port, RUN_LED_Pin);
+        HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
         TaskBase::delay(500);
     }
 }

@@ -176,8 +176,8 @@ void ContinuityCollector::processSlot(uint16_t slotNumber, uint8_t activePin,
 
     // 减少日志输出频率，只在每10个周期输出一次
     if (currentCycle_ % 10 == 0) {
-        elog_d(TAG, "Processed slot %d (cycle %d), active: %s, pin: %d", slotNumber,
-               currentCycle_, isActive ? "true" : "false", activePin);
+        // elog_d(TAG, "Processed slot %d (cycle %d), active: %s, pin: %d", slotNumber,
+        //        currentCycle_, isActive ? "true" : "false", activePin);
     }
 
     // 更新周期计数

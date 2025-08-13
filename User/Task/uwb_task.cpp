@@ -215,7 +215,7 @@ static void uwb_comm_task(void *argument) {
 
         if (uwb.get_recv_data(buffer)) {
             // uwb.set_recv_mode();
-            elog_w(TAG, "rx size: %d", buffer.size());
+            // elog_w(TAG, "rx size: %d", buffer.size());
             rx_msg.data_len = buffer.size();
             for (int i = 0; i < rx_msg.data_len; i++) {
                 rx_msg.data[i] = buffer[i];
