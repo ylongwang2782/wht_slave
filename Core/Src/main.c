@@ -63,7 +63,7 @@ void MX_FREERTOS_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == huart4.Instance) {
+    if (huart->Instance == DEBUG_UART.Instance) {
         extern osSemaphoreId_t elog_dma_lockHandle;
         osSemaphoreRelease(elog_dma_lockHandle);
     }

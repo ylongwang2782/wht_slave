@@ -79,7 +79,7 @@ void elog_port_deinit(void) {}
  * @param size log size
  */
 void elog_port_output(const char *log, size_t size) {
-    HAL_UART_Transmit_DMA(&huart4, (uint8_t *)log, size);
+    HAL_UART_Transmit_DMA(&DEBUG_UART, (uint8_t *)log, size);
     osSemaphoreAcquire(elog_dma_lockHandle, osWaitForever);
 }
 

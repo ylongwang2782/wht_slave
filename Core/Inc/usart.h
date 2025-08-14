@@ -29,7 +29,7 @@ extern "C" {
 #include "main.h"
 
 /* USER CODE BEGIN Includes */
-
+#define DEBUG_UART huart4
 /* USER CODE END Includes */
 
 extern UART_HandleTypeDef huart4;
