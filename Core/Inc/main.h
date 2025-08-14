@@ -85,6 +85,10 @@ void Error_Handler(void);
 #define DIP2_GPIO_Port GPIOC
 #define DIP1_Pin GPIO_PIN_3
 #define DIP1_GPIO_Port GPIOC
+#define DEBUG_TX_Pin GPIO_PIN_0
+#define DEBUG_TX_GPIO_Port GPIOA
+#define DEBUG_RX_Pin GPIO_PIN_1
+#define DEBUG_RX_GPIO_Port GPIOA
 #define VBAT_DET_Pin GPIO_PIN_2
 #define VBAT_DET_GPIO_Port GPIOA
 #define IO1_Pin GPIO_PIN_3

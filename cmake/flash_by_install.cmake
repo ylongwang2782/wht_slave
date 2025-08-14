@@ -26,7 +26,7 @@ shutdown)")
 # "execute_process(COMMAND ${OPENOCD_EXECUTABLE} -f
 # ${PROJECT_SOURCE_DIR}/Scripts/OpenOCD/openocd_gdlink.cfg -c \"init; reset
 # halt; flash write_image erase
-# $<TARGET_FILE_DIR:${EXECUTABLE_NAME}>/${EXECUTABLE_NAME}.bin 0x08000000 bin;
+# $<TARGET_FILE_DIR:${EXECUTABLE_NAME}>/${EXECUTABLE_NAME}.bin 0x08008000 bin;
 # reset run\" -c shutdown)" )
 
 # install by jlink install( CODE CODE "MESSAGE(\"Flash......\")" CODE

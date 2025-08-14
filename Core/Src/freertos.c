@@ -171,7 +171,7 @@ void StartDefaultTask(void *argument)
 /* USER CODE BEGIN Application */
 
 int __io_putchar(int ch) {
-    HAL_UART_Transmit(&huart4, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+    HAL_UART_Transmit(&DEBUG_UART, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
     return ch;
 }
 
