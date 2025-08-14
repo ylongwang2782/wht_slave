@@ -5,6 +5,7 @@
 #include "main.h"
 #include "uwb_task.h"
 #include "adc.h"
+#include "bootloader_flag.h"
 
 extern void UWB_Task_Init(void);
 

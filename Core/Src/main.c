@@ -18,7 +18,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "cmsis_os.h"
 #include "adc.h"
 #include "dma.h"
 #include "i2c.h"
@@ -30,6 +29,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "elog.h"
+#include "bootloader_flag.h"
+#include "uart_cmd_handler.h"
+#include "cmsis_os2.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,7 +81,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-SCB->VTOR = 0x08008000;
+    SCB->VTOR = 0x08008000;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -123,6 +126,15 @@ SCB->VTOR = 0x08008000;
     elog_start();
 
     HAL_TIM_Base_Start(&htim2);
+
+    // 初始化并检查bootloader标志位（这里只是检查，清除操作应该在bootloader中进行）
+    if (check_bootloader_upgrade_flag()) {
+        printf("Bootloader upgrade flag detected but not cleared by bootloader!\r\n");
+        // 注意：这里不清除标志位，因为可能bootloader没有正确清除
+    }
+
+    // 初始化UART命令处理系统
+    uart_cmd_handler_init();
 
   /* USER CODE END 2 */
 
