@@ -1,9 +1,9 @@
 name: Build and Release
 
 on:
-  push:
-    branches:
-      - main
+    push:
+      tags:
+        - 'v*'
 
 permissions:
   contents: write
@@ -49,10 +49,8 @@ jobs:
         id: get_version
         shell: bash
         run: |
-          # 获取最新的 tag，如果没有则使用 commit hash
           if git describe --tags --abbrev=0 2>/dev/null; then
             VERSION=$(git describe --tags --abbrev=0)
-            VERSION=${VERSION#v} # 移除前缀 v
           else
             VERSION=$(git rev-parse --short HEAD)
           fi
@@ -62,24 +60,16 @@ jobs:
       - name: Prepare Release Assets
         shell: bash
         run: |
-          cp build/debug/wht_slave.hex wht_slave_v${VERSION}.hex
-          echo "FIRMWARE_NAME=wht_slave_v${VERSION}.hex" >> $GITHUB_ENV
+          cp build/debug/wht_slave.hex wht-slave-${VERSION}.hex
+          cp build/debug/wht_slave.bin wht-slave-${VERSION}.bin
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.get_version.outputs.version }}
-          name: Release v${{ steps.get_version.outputs.version }}
-          body: |
-            ## Firmware Release v${{ steps.get_version.outputs.version }}
-            
-            ### Changes
-            - Built from commit: ${{ github.sha }}
-            - Branch: ${{ github.ref_name }}
-            
-            ### Assets
-            - `wht_slave_v${{ steps.get_version.outputs.version }}.hex` - Firmware binary
-          files: wht_slave_v${{ steps.get_version.outputs.version }}.hex
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: Release ${{ steps.get_version.outputs.version }}
+          generate_release_notes: true
+          files: wht-slave-${{ steps.get_version.outputs.version }}.hex, wht-slave-${{ steps.get_version.outputs.version }}.bin
           draft: false
           prerelease: false
         env:
