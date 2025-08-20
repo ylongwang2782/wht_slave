@@ -42,41 +42,84 @@ static volatile uint16_t ring_tail = 0;    // Read pointer (updated in task)
 static uint8_t frame_buffer[FACTORY_TEST_BUFFER_SIZE];
 static uint16_t frame_index = 0;
 
+/* 64-way IO pin mapping table */
+typedef struct {
+    GPIO_TypeDef* port;
+    uint16_t pin;
+} gpio_pin_map_t;
+
+static const gpio_pin_map_t io_pin_map[64] = {
+    {IO1_GPIO_Port, IO1_Pin},   {IO2_GPIO_Port, IO2_Pin},
+    {IO3_GPIO_Port, IO3_Pin},   {IO4_GPIO_Port, IO4_Pin},
+    {IO5_GPIO_Port, IO5_Pin},   {IO6_GPIO_Port, IO6_Pin},
+    {IO7_GPIO_Port, IO7_Pin},   {IO8_GPIO_Port, IO8_Pin},
+    {IO9_GPIO_Port, IO9_Pin},   {IO10_GPIO_Port, IO10_Pin},
+    {IO11_GPIO_Port, IO11_Pin}, {IO12_GPIO_Port, IO12_Pin},
+    {IO13_GPIO_Port, IO13_Pin}, {IO14_GPIO_Port, IO14_Pin},
+    {IO15_GPIO_Port, IO15_Pin}, {IO16_GPIO_Port, IO16_Pin},
+    {IO17_GPIO_Port, IO17_Pin}, {IO18_GPIO_Port, IO18_Pin},
+    {IO19_GPIO_Port, IO19_Pin}, {IO20_GPIO_Port, IO20_Pin},
+    {IO21_GPIO_Port, IO21_Pin}, {IO22_GPIO_Port, IO22_Pin},
+    {IO23_GPIO_Port, IO23_Pin}, {IO24_GPIO_Port, IO24_Pin},
+    {IO25_GPIO_Port, IO25_Pin}, {IO26_GPIO_Port, IO26_Pin},
+    {IO27_GPIO_Port, IO27_Pin}, {IO28_GPIO_Port, IO28_Pin},
+    {IO29_GPIO_Port, IO29_Pin}, {IO30_GPIO_Port, IO30_Pin},
+    {IO31_GPIO_Port, IO31_Pin}, {IO32_GPIO_Port, IO32_Pin},
+    {IO33_GPIO_Port, IO33_Pin}, {IO34_GPIO_Port, IO34_Pin},
+    {IO35_GPIO_Port, IO35_Pin}, {IO36_GPIO_Port, IO36_Pin},
+    {IO37_GPIO_Port, IO37_Pin}, {IO38_GPIO_Port, IO38_Pin},
+    {IO39_GPIO_Port, IO39_Pin}, {IO40_GPIO_Port, IO40_Pin},
+    {IO41_GPIO_Port, IO41_Pin}, {IO42_GPIO_Port, IO42_Pin},
+    {IO43_GPIO_Port, IO43_Pin}, {IO44_GPIO_Port, IO44_Pin},
+    {IO45_GPIO_Port, IO45_Pin}, {IO46_GPIO_Port, IO46_Pin},
+    {IO47_GPIO_Port, IO47_Pin}, {IO48_GPIO_Port, IO48_Pin},
+    {IO49_GPIO_Port, IO49_Pin}, {IO50_GPIO_Port, IO50_Pin},
+    {IO51_GPIO_Port, IO51_Pin}, {IO52_GPIO_Port, IO52_Pin},
+    {IO53_GPIO_Port, IO53_Pin}, {IO54_GPIO_Port, IO54_Pin},
+    {IO55_GPIO_Port, IO55_Pin}, {IO56_GPIO_Port, IO56_Pin},
+    {IO57_GPIO_Port, IO57_Pin}, {IO58_GPIO_Port, IO58_Pin},
+    {IO59_GPIO_Port, IO59_Pin}, {IO60_GPIO_Port, IO60_Pin},
+    {IO61_GPIO_Port, IO61_Pin}, {IO62_GPIO_Port, IO62_Pin},
+    {IO63_GPIO_Port, IO63_Pin}, {IO64_GPIO_Port, IO64_Pin}};
+
+/* DIP switch pin mapping table */
+static const gpio_pin_map_t dip_pin_map[8] = {
+    {DIP1_GPIO_Port, DIP1_Pin}, {DIP2_GPIO_Port, DIP2_Pin},
+    {DIP3_GPIO_Port, DIP3_Pin}, {DIP4_GPIO_Port, DIP4_Pin},
+    {DIP5_GPIO_Port, DIP5_Pin}, {DIP6_GPIO_Port, DIP6_Pin},
+    {DIP7_GPIO_Port, DIP7_Pin}, {DIP8_GPIO_Port, DIP8_Pin}};
+
 /* CRC16-MODBUS lookup table */
 static const uint16_t crc16_table[256] = {
-    0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301, 0x03C0, 0x0280, 0xC241,
-    0xC601, 0x06C0, 0x0780, 0xC741, 0x0500, 0xC5C1, 0xC481, 0x0440,
-    0xCC01, 0x0CC0, 0x0D80, 0xCD41, 0x0F00, 0xCFC1, 0xCE81, 0x0E40,
-    0x0A00, 0xCAC1, 0xCB81, 0x0B40, 0xC901, 0x09C0, 0x0880, 0xC841,
-    0xD801, 0x18C0, 0x1980, 0xD941, 0x1B00, 0xDBC1, 0xDA81, 0x1A40,
-    0x1E00, 0xDEC1, 0xDF81, 0x1F40, 0xDD01, 0x1DC0, 0x1C80, 0xDC41,
-    0x1400, 0xD4C1, 0xD581, 0x1540, 0xD701, 0x17C0, 0x1680, 0xD641,
-    0xD201, 0x12C0, 0x1380, 0xD341, 0x1100, 0xD1C1, 0xD081, 0x1040,
-    0xF001, 0x30C0, 0x3180, 0xF141, 0x3300, 0xF3C1, 0xF281, 0x3240,
-    0x3600, 0xF6C1, 0xF781, 0x3740, 0xF501, 0x35C0, 0x3480, 0xF441,
-    0x3C00, 0xFCC1, 0xFD81, 0x3D40, 0xFF01, 0x3FC0, 0x3E80, 0xFE41,
-    0xFA01, 0x3AC0, 0x3B80, 0xFB41, 0x3900, 0xF9C1, 0xF881, 0x3840,
-    0x2800, 0xE8C1, 0xE981, 0x2940, 0xEB01, 0x2BC0, 0x2A80, 0xEA41,
-    0xEE01, 0x2EC0, 0x2F80, 0xEF41, 0x2D00, 0xEDC1, 0xEC81, 0x2C40,
-    0xE401, 0x24C0, 0x2580, 0xE541, 0x2700, 0xE7C1, 0xE681, 0x2640,
-    0x2200, 0xE2C1, 0xE381, 0x2340, 0xE101, 0x21C0, 0x2080, 0xE041,
-    0xA001, 0x60C0, 0x6180, 0xA141, 0x6300, 0xA3C1, 0xA281, 0x6240,
-    0x6600, 0xA6C1, 0xA781, 0x6740, 0xA501, 0x65C0, 0x6480, 0xA441,
-    0x6C00, 0xACC1, 0xAD81, 0x6D40, 0xAF01, 0x6FC0, 0x6E80, 0xAE41,
-    0xAA01, 0x6AC0, 0x6B80, 0xAB41, 0x6900, 0xA9C1, 0xA881, 0x6840,
-    0x7800, 0xB8C1, 0xB981, 0x7940, 0xBB01, 0x7BC0, 0x7A80, 0xBA41,
-    0xBE01, 0x7EC0, 0x7F80, 0xBF41, 0x7D00, 0xBDC1, 0xBC81, 0x7C40,
-    0xB401, 0x74C0, 0x7580, 0xB541, 0x7700, 0xB7C1, 0xB681, 0x7640,
-    0x7200, 0xB2C1, 0xB381, 0x7340, 0xB101, 0x71C0, 0x7080, 0xB041,
-    0x5000, 0x90C1, 0x9181, 0x5140, 0x9301, 0x53C0, 0x5280, 0x9241,
-    0x9601, 0x56C0, 0x5780, 0x9741, 0x5500, 0x95C1, 0x9481, 0x5440,
-    0x9C01, 0x5CC0, 0x5D80, 0x9D41, 0x5F00, 0x9FC1, 0x9E81, 0x5E40,
-    0x5A00, 0x9AC1, 0x9B81, 0x5B40, 0x9901, 0x59C0, 0x5880, 0x9841,
-    0x8801, 0x48C0, 0x4980, 0x8941, 0x4B00, 0x8BC1, 0x8A81, 0x4A40,
-    0x4E00, 0x8EC1, 0x8F81, 0x4F40, 0x8D01, 0x4DC0, 0x4C80, 0x8C41,
-    0x4400, 0x84C1, 0x8581, 0x4540, 0x8701, 0x47C0, 0x4680, 0x8641,
-    0x8201, 0x42C0, 0x4380, 0x8341, 0x4100, 0x81C1, 0x8081, 0x4040
-};
+    0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301, 0x03C0, 0x0280, 0xC241, 0xC601,
+    0x06C0, 0x0780, 0xC741, 0x0500, 0xC5C1, 0xC481, 0x0440, 0xCC01, 0x0CC0,
+    0x0D80, 0xCD41, 0x0F00, 0xCFC1, 0xCE81, 0x0E40, 0x0A00, 0xCAC1, 0xCB81,
+    0x0B40, 0xC901, 0x09C0, 0x0880, 0xC841, 0xD801, 0x18C0, 0x1980, 0xD941,
+    0x1B00, 0xDBC1, 0xDA81, 0x1A40, 0x1E00, 0xDEC1, 0xDF81, 0x1F40, 0xDD01,
+    0x1DC0, 0x1C80, 0xDC41, 0x1400, 0xD4C1, 0xD581, 0x1540, 0xD701, 0x17C0,
+    0x1680, 0xD641, 0xD201, 0x12C0, 0x1380, 0xD341, 0x1100, 0xD1C1, 0xD081,
+    0x1040, 0xF001, 0x30C0, 0x3180, 0xF141, 0x3300, 0xF3C1, 0xF281, 0x3240,
+    0x3600, 0xF6C1, 0xF781, 0x3740, 0xF501, 0x35C0, 0x3480, 0xF441, 0x3C00,
+    0xFCC1, 0xFD81, 0x3D40, 0xFF01, 0x3FC0, 0x3E80, 0xFE41, 0xFA01, 0x3AC0,
+    0x3B80, 0xFB41, 0x3900, 0xF9C1, 0xF881, 0x3840, 0x2800, 0xE8C1, 0xE981,
+    0x2940, 0xEB01, 0x2BC0, 0x2A80, 0xEA41, 0xEE01, 0x2EC0, 0x2F80, 0xEF41,
+    0x2D00, 0xEDC1, 0xEC81, 0x2C40, 0xE401, 0x24C0, 0x2580, 0xE541, 0x2700,
+    0xE7C1, 0xE681, 0x2640, 0x2200, 0xE2C1, 0xE381, 0x2340, 0xE101, 0x21C0,
+    0x2080, 0xE041, 0xA001, 0x60C0, 0x6180, 0xA141, 0x6300, 0xA3C1, 0xA281,
+    0x6240, 0x6600, 0xA6C1, 0xA781, 0x6740, 0xA501, 0x65C0, 0x6480, 0xA441,
+    0x6C00, 0xACC1, 0xAD81, 0x6D40, 0xAF01, 0x6FC0, 0x6E80, 0xAE41, 0xAA01,
+    0x6AC0, 0x6B80, 0xAB41, 0x6900, 0xA9C1, 0xA881, 0x6840, 0x7800, 0xB8C1,
+    0xB981, 0x7940, 0xBB01, 0x7BC0, 0x7A80, 0xBA41, 0xBE01, 0x7EC0, 0x7F80,
+    0xBF41, 0x7D00, 0xBDC1, 0xBC81, 0x7C40, 0xB401, 0x74C0, 0x7580, 0xB541,
+    0x7700, 0xB7C1, 0xB681, 0x7640, 0x7200, 0xB2C1, 0xB381, 0x7340, 0xB101,
+    0x71C0, 0x7080, 0xB041, 0x5000, 0x90C1, 0x9181, 0x5140, 0x9301, 0x53C0,
+    0x5280, 0x9241, 0x9601, 0x56C0, 0x5780, 0x9741, 0x5500, 0x95C1, 0x9481,
+    0x5440, 0x9C01, 0x5CC0, 0x5D80, 0x9D41, 0x5F00, 0x9FC1, 0x9E81, 0x5E40,
+    0x5A00, 0x9AC1, 0x9B81, 0x5B40, 0x9901, 0x59C0, 0x5880, 0x9841, 0x8801,
+    0x48C0, 0x4980, 0x8941, 0x4B00, 0x8BC1, 0x8A81, 0x4A40, 0x4E00, 0x8EC1,
+    0x8F81, 0x4F40, 0x8D01, 0x4DC0, 0x4C80, 0x8C41, 0x4400, 0x84C1, 0x8581,
+    0x4540, 0x8701, 0x47C0, 0x4680, 0x8641, 0x8201, 0x42C0, 0x4380, 0x8341,
+    0x4100, 0x81C1, 0x8081, 0x4040};
 
 /* Private function prototypes -----------------------------------------------*/
 static void factory_test_reset_frame_buffer(void);
@@ -92,6 +135,17 @@ static bool ring_buffer_put(uint8_t data);
 static bool ring_buffer_get(uint8_t* data);
 static uint16_t ring_buffer_available(void);
 static void ring_buffer_reset(void);
+
+/* Special IO control functions */
+static device_status_t special_io_set_mode(uint8_t target_id, uint64_t pin_mask,
+                                           uint8_t mode);
+static device_status_t special_io_set_pull(uint8_t target_id, uint64_t pin_mask,
+                                           uint8_t pull);
+static device_status_t special_io_write_level(uint8_t target_id,
+                                              uint64_t pin_mask, uint8_t level);
+static device_status_t special_io_read_level(uint8_t target_id,
+                                             uint64_t* levels);
+static void enable_gpio_clocks_for_special_io(uint8_t target_id);
 
 /* Public functions ----------------------------------------------------------*/
 
@@ -485,15 +539,166 @@ void factory_test_handle_gpio_control(const factory_test_frame_t* frame) {
  * @retval None
  */
 void factory_test_handle_special_io_control(const factory_test_frame_t* frame) {
-    // TODO: Implement special IO control (64-way IO, DIP switches, etc.)
-    elog_w(TAG, "Special IO control not implemented yet");
+    if (frame->payload_len < 2) {
+        elog_w(TAG, "Special IO control payload too short");
+        return;
+    }
+
+    uint8_t sub_id = frame->payload[0];
+    uint8_t target_id = frame->payload[1];
 
     factory_test_frame_t response;
-    uint8_t response_payload[3] = {
-        0x01, 0x01, DEVICE_ERR_EXECUTION};    // Sub-ID, Target-ID, Status
-    factory_test_create_response_frame(&response, MSG_ID_SPECIAL_IO_CONTROL,
-                                       response_payload, 3);
+    device_status_t status = DEVICE_OK;
+
+    elog_d(TAG, "Special IO control: sub_id=0x%02X, target_id=0x%02X", sub_id,
+           target_id);
+
+    // Validate target ID
+    if (target_id != 0x01 && target_id != 0x02) {
+        uint8_t response_payload[3] = {sub_id, target_id,
+                                       DEVICE_ERR_INVALID_PORT};
+        factory_test_create_response_frame(&response, MSG_ID_SPECIAL_IO_CONTROL,
+                                           response_payload, 3);
+        factory_test_send_response(&response);
+        return;
+    }
+
+    switch (sub_id) {
+        case 0x01:    // Set mode
+            if ((target_id == 0x01 &&
+                 frame->payload_len >=
+                     10) ||    // 64-way IO: Sub-ID(1) + Target-ID(1) + Mask(8)
+                               // + Value(1) = 11
+                (target_id == 0x02 &&
+                 frame->payload_len >=
+                     4)) {    // DIP switches: Sub-ID(1) + Target-ID(1) +
+                              // Mask(1) + Value(1) = 4
+
+                uint64_t pin_mask = 0;
+                uint8_t value = 0;
+
+                if (target_id == 0x01) {
+                    // 64-way IO - 8 bytes mask (little endian)
+                    for (int i = 0; i < 8; i++) {
+                        pin_mask |= ((uint64_t)frame->payload[2 + i])
+                                    << (i * 8);
+                    }
+                    value = frame->payload[10];
+                } else {
+                    // DIP switches - 1 byte mask
+                    pin_mask = frame->payload[2];
+                    value = frame->payload[3];
+                }
+
+                status = special_io_set_mode(target_id, pin_mask, value);
+                uint8_t response_payload[3] = {sub_id, target_id, status};
+                factory_test_create_response_frame(
+                    &response, MSG_ID_SPECIAL_IO_CONTROL, response_payload, 3);
+            } else {
+                uint8_t response_payload[3] = {sub_id, target_id,
+                                               DEVICE_ERR_EXECUTION};
+                factory_test_create_response_frame(
+                    &response, MSG_ID_SPECIAL_IO_CONTROL, response_payload, 3);
+            }
+            break;
+
+        case 0x02:    // Set pull
+            if ((target_id == 0x01 && frame->payload_len >= 10) ||
+                (target_id == 0x02 && frame->payload_len >= 4)) {
+                uint64_t pin_mask = 0;
+                uint8_t value = 0;
+
+                if (target_id == 0x01) {
+                    for (int i = 0; i < 8; i++) {
+                        pin_mask |= ((uint64_t)frame->payload[2 + i])
+                                    << (i * 8);
+                    }
+                    value = frame->payload[10];
+                } else {
+                    pin_mask = frame->payload[2];
+                    value = frame->payload[3];
+                }
+
+                status = special_io_set_pull(target_id, pin_mask, value);
+                uint8_t response_payload[3] = {sub_id, target_id, status};
+                factory_test_create_response_frame(
+                    &response, MSG_ID_SPECIAL_IO_CONTROL, response_payload, 3);
+            } else {
+                uint8_t response_payload[3] = {sub_id, target_id,
+                                               DEVICE_ERR_EXECUTION};
+                factory_test_create_response_frame(
+                    &response, MSG_ID_SPECIAL_IO_CONTROL, response_payload, 3);
+            }
+            break;
+
+        case 0x03:    // Write level
+            if ((target_id == 0x01 && frame->payload_len >= 10) ||
+                (target_id == 0x02 && frame->payload_len >= 4)) {
+                uint64_t pin_mask = 0;
+                uint8_t value = 0;
+
+                if (target_id == 0x01) {
+                    for (int i = 0; i < 8; i++) {
+                        pin_mask |= ((uint64_t)frame->payload[2 + i])
+                                    << (i * 8);
+                    }
+                    value = frame->payload[10];
+                } else {
+                    pin_mask = frame->payload[2];
+                    value = frame->payload[3];
+                }
+
+                status = special_io_write_level(target_id, pin_mask, value);
+                uint8_t response_payload[3] = {sub_id, target_id, status};
+                factory_test_create_response_frame(
+                    &response, MSG_ID_SPECIAL_IO_CONTROL, response_payload, 3);
+            } else {
+                uint8_t response_payload[3] = {sub_id, target_id,
+                                               DEVICE_ERR_EXECUTION};
+                factory_test_create_response_frame(
+                    &response, MSG_ID_SPECIAL_IO_CONTROL, response_payload, 3);
+            }
+            break;
+
+        case 0x04:    // Read level
+        {
+            uint64_t levels = 0;
+            status = special_io_read_level(target_id, &levels);
+
+            if (target_id == 0x01) {
+                // 64-way IO response: Sub-ID(1) + Target-ID(1) + Levels(8)
+                uint8_t response_payload[10];
+                response_payload[0] = sub_id;
+                response_payload[1] = target_id;
+                for (int i = 0; i < 8; i++) {
+                    response_payload[2 + i] = (levels >> (i * 8)) & 0xFF;
+                }
+                factory_test_create_response_frame(
+                    &response, MSG_ID_SPECIAL_IO_CONTROL, response_payload, 10);
+            } else {
+                // DIP switches response: Sub-ID(1) + Target-ID(1) + Levels(1)
+                uint8_t response_payload[3];
+                response_payload[0] = sub_id;
+                response_payload[1] = target_id;
+                response_payload[2] = levels & 0xFF;
+                factory_test_create_response_frame(
+                    &response, MSG_ID_SPECIAL_IO_CONTROL, response_payload, 3);
+            }
+        } break;
+
+        default: {
+            uint8_t response_payload[3] = {sub_id, target_id,
+                                           DEVICE_ERR_INVALID_SUB_ID};
+            factory_test_create_response_frame(
+                &response, MSG_ID_SPECIAL_IO_CONTROL, response_payload, 3);
+        } break;
+    }
+
     factory_test_send_response(&response);
+    elog_d(TAG,
+           "Special IO control response sent, sub_id=0x%02X, target_id=0x%02X, "
+           "status=%d",
+           sub_id, target_id, status);
 }
 
 /**
@@ -907,4 +1112,236 @@ __attribute__((unused)) static uint16_t ring_buffer_available(void) {
 static void ring_buffer_reset(void) {
     ring_head = 0;
     ring_tail = 0;
+}
+
+/* Special IO control functions implementation -------------------------------
+ */
+
+/**
+ * @brief  Enable GPIO clocks for special IO targets
+ * @param  target_id: Target ID (1=64-way IO, 2=DIP switches)
+ * @retval None
+ */
+static void enable_gpio_clocks_for_special_io(uint8_t target_id) {
+    // already enabled in main.c
+}
+
+/**
+ * @brief  Set special IO pin mode
+ * @param  target_id: Target ID (1=64-way IO, 2=DIP switches)
+ * @param  pin_mask: Pin mask
+ * @param  mode: GPIO mode
+ * @retval Device status
+ */
+static device_status_t special_io_set_mode(uint8_t target_id, uint64_t pin_mask,
+                                           uint8_t mode) {
+    if (target_id != 0x01 && target_id != 0x02) {
+        return DEVICE_ERR_INVALID_PORT;
+    }
+
+    if (pin_mask == 0) {
+        return DEVICE_ERR_INVALID_PIN;
+    }
+
+    enable_gpio_clocks_for_special_io(target_id);
+
+    uint32_t gpio_mode;
+    switch (mode) {
+        case FACTORY_GPIO_MODE_INPUT:
+            gpio_mode = GPIO_MODE_INPUT;
+            break;
+        case FACTORY_GPIO_MODE_OUTPUT:
+            gpio_mode = GPIO_MODE_OUTPUT_PP;
+            break;
+        case FACTORY_GPIO_MODE_ANALOG:
+            gpio_mode = GPIO_MODE_ANALOG;
+            break;
+        default:
+            return DEVICE_ERR_EXECUTION;
+    }
+
+    const gpio_pin_map_t* pin_map;
+    uint8_t pin_count;
+
+    if (target_id == 0x01) {
+        pin_map = io_pin_map;
+        pin_count = 64;
+    } else {
+        pin_map = dip_pin_map;
+        pin_count = 8;
+    }
+
+    // Configure each selected pin
+    for (uint8_t i = 0; i < pin_count; i++) {
+        if (pin_mask & (1ULL << i)) {
+            GPIO_InitTypeDef gpio_init = {0};
+            gpio_init.Pin = pin_map[i].pin;
+            gpio_init.Mode = gpio_mode;
+            gpio_init.Pull = GPIO_NOPULL;
+            gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
+
+            HAL_GPIO_Init(pin_map[i].port, &gpio_init);
+        }
+    }
+
+    elog_d(TAG, "Special IO mode set: target=%d, mask=0x%016X, mode=%d",
+           target_id, pin_mask, mode);
+    return DEVICE_OK;
+}
+
+/**
+ * @brief  Set special IO pin pull configuration
+ * @param  target_id: Target ID
+ * @param  pin_mask: Pin mask
+ * @param  pull: Pull configuration
+ * @retval Device status
+ */
+static device_status_t special_io_set_pull(uint8_t target_id, uint64_t pin_mask,
+                                           uint8_t pull) {
+    if (target_id != 0x01 && target_id != 0x02) {
+        return DEVICE_ERR_INVALID_PORT;
+    }
+
+    if (pin_mask == 0) {
+        return DEVICE_ERR_INVALID_PIN;
+    }
+
+    enable_gpio_clocks_for_special_io(target_id);
+
+    uint32_t gpio_pull;
+    switch (pull) {
+        case GPIO_PULL_DOWN:
+            gpio_pull = GPIO_PULLDOWN;
+            break;
+        case GPIO_PULL_UP:
+            gpio_pull = GPIO_PULLUP;
+            break;
+        case GPIO_PULL_NONE:
+            gpio_pull = GPIO_NOPULL;
+            break;
+        default:
+            return DEVICE_ERR_EXECUTION;
+    }
+
+    const gpio_pin_map_t* pin_map;
+    uint8_t pin_count;
+
+    if (target_id == 0x01) {
+        pin_map = io_pin_map;
+        pin_count = 64;
+    } else {
+        pin_map = dip_pin_map;
+        pin_count = 8;
+    }
+
+    // Configure each selected pin
+    for (uint8_t i = 0; i < pin_count; i++) {
+        if (pin_mask & (1ULL << i)) {
+            GPIO_InitTypeDef gpio_init = {0};
+            gpio_init.Pin = pin_map[i].pin;
+            gpio_init.Mode =
+                GPIO_MODE_INPUT;    // Assume input mode for pull config
+            gpio_init.Pull = gpio_pull;
+            gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
+
+            HAL_GPIO_Init(pin_map[i].port, &gpio_init);
+        }
+    }
+
+    elog_d(TAG, "Special IO pull set: target=%d, mask=0x%016X, pull=%d",
+           target_id, pin_mask, pull);
+    return DEVICE_OK;
+}
+
+/**
+ * @brief  Write special IO pin levels
+ * @param  target_id: Target ID
+ * @param  pin_mask: Pin mask
+ * @param  level: Level to write
+ * @retval Device status
+ */
+static device_status_t special_io_write_level(uint8_t target_id,
+                                              uint64_t pin_mask,
+                                              uint8_t level) {
+    if (target_id != 0x01 && target_id != 0x02) {
+        return DEVICE_ERR_INVALID_PORT;
+    }
+
+    if (pin_mask == 0) {
+        return DEVICE_ERR_INVALID_PIN;
+    }
+
+    GPIO_PinState pin_state;
+    if (level == GPIO_LEVEL_HIGH) {
+        pin_state = GPIO_PIN_SET;
+    } else if (level == GPIO_LEVEL_LOW) {
+        pin_state = GPIO_PIN_RESET;
+    } else {
+        return DEVICE_ERR_EXECUTION;
+    }
+
+    const gpio_pin_map_t* pin_map;
+    uint8_t pin_count;
+
+    if (target_id == 0x01) {
+        pin_map = io_pin_map;
+        pin_count = 64;
+    } else {
+        pin_map = dip_pin_map;
+        pin_count = 8;
+    }
+
+    // Write level to each selected pin
+    for (uint8_t i = 0; i < pin_count; i++) {
+        if (pin_mask & (1ULL << i)) {
+            HAL_GPIO_WritePin(pin_map[i].port, pin_map[i].pin, pin_state);
+        }
+    }
+
+    elog_d(TAG, "Special IO level written: target=%d, mask=0x%016X, level=%d",
+           target_id, pin_mask, level);
+    return DEVICE_OK;
+}
+
+/**
+ * @brief  Read special IO pin levels
+ * @param  target_id: Target ID
+ * @param  levels: Pointer to store read levels
+ * @retval Device status
+ */
+static device_status_t special_io_read_level(uint8_t target_id,
+                                             uint64_t* levels) {
+    if (target_id != 0x01 && target_id != 0x02) {
+        return DEVICE_ERR_INVALID_PORT;
+    }
+
+    if (levels == NULL) {
+        return DEVICE_ERR_EXECUTION;
+    }
+
+    const gpio_pin_map_t* pin_map;
+    uint8_t pin_count;
+
+    if (target_id == 0x01) {
+        pin_map = io_pin_map;
+        pin_count = 64;
+    } else {
+        pin_map = dip_pin_map;
+        pin_count = 8;
+    }
+
+    *levels = 0;
+
+    // Read level from each pin
+    for (uint8_t i = 0; i < pin_count; i++) {
+        GPIO_PinState pin_state =
+            HAL_GPIO_ReadPin(pin_map[i].port, pin_map[i].pin);
+        if (pin_state == GPIO_PIN_SET) {
+            *levels |= (1ULL << i);
+        }
+    }
+
+    elog_d(TAG, "Special IO levels read: target=%d, levels=0x%016llX",
+           target_id, *levels);
+    return DEVICE_OK;
 }
