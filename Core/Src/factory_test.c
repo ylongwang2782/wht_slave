@@ -147,6 +147,10 @@ static device_status_t special_io_read_level(uint8_t target_id,
                                              uint64_t* levels);
 static void enable_gpio_clocks_for_special_io(uint8_t target_id);
 
+/* GPIO configuration helper functions */
+static uint32_t get_gpio_pin_mode(GPIO_TypeDef* port, uint16_t pin);
+static uint32_t get_gpio_pin_pull(GPIO_TypeDef* port, uint16_t pin);
+
 /* Public functions ----------------------------------------------------------*/
 
 /**
@@ -812,28 +816,38 @@ device_status_t factory_test_gpio_set_mode(uint8_t port_id, uint16_t pin_mask,
             return DEVICE_ERR_INVALID_PORT;
     }
 
-    GPIO_InitTypeDef gpio_init = {0};
-
+    uint32_t gpio_mode;
+    
     // Set mode
     switch (mode) {
         case FACTORY_GPIO_MODE_INPUT:
-            gpio_init.Mode = GPIO_MODE_INPUT;
+            gpio_mode = GPIO_MODE_INPUT;
             break;
         case FACTORY_GPIO_MODE_OUTPUT:
-            gpio_init.Mode = GPIO_MODE_OUTPUT_PP;
+            gpio_mode = GPIO_MODE_OUTPUT_PP;
             break;
         case FACTORY_GPIO_MODE_ANALOG:
-            gpio_init.Mode = GPIO_MODE_ANALOG;
+            gpio_mode = GPIO_MODE_ANALOG;
             break;
         default:
             return DEVICE_ERR_EXECUTION;
     }
 
-    gpio_init.Pin = factory_test_convert_pin_mask(pin_mask);
-    gpio_init.Pull = GPIO_NOPULL;
-    gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
+    // Configure each pin individually to preserve its own pull configuration
+    for (uint8_t pin_num = 0; pin_num < 16; pin_num++) {
+        if (pin_mask & (1 << pin_num)) {
+            uint16_t current_pin = (1 << pin_num);
+            
+            GPIO_InitTypeDef gpio_init = {0};
+            gpio_init.Pin = current_pin;
+            gpio_init.Mode = gpio_mode;
+            // Preserve existing pull configuration for this specific pin
+            gpio_init.Pull = get_gpio_pin_pull(gpio_port, current_pin);
+            gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
 
-    HAL_GPIO_Init(gpio_port, &gpio_init);
+            HAL_GPIO_Init(gpio_port, &gpio_init);
+        }
+    }
 
     elog_d(TAG, "GPIO mode set: port=%d, mask=0x%04X, mode=%d", port_id,
            pin_mask, mode);
@@ -888,26 +902,37 @@ device_status_t factory_test_gpio_set_pull(uint8_t port_id, uint16_t pin_mask,
             return DEVICE_ERR_INVALID_PORT;
     }
 
-    GPIO_InitTypeDef gpio_init = {0};
-    gpio_init.Pin = factory_test_convert_pin_mask(pin_mask);
-    gpio_init.Mode = GPIO_MODE_INPUT;    // Assume input mode for pull config
-    gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
-
+    uint32_t gpio_pull;
+    
     switch (pull) {
         case GPIO_PULL_DOWN:
-            gpio_init.Pull = GPIO_PULLDOWN;
+            gpio_pull = GPIO_PULLDOWN;
             break;
         case GPIO_PULL_UP:
-            gpio_init.Pull = GPIO_PULLUP;
+            gpio_pull = GPIO_PULLUP;
             break;
         case GPIO_PULL_NONE:
-            gpio_init.Pull = GPIO_NOPULL;
+            gpio_pull = GPIO_NOPULL;
             break;
         default:
             return DEVICE_ERR_EXECUTION;
     }
 
-    HAL_GPIO_Init(gpio_port, &gpio_init);
+    // Configure each pin individually to preserve its own mode configuration
+    for (uint8_t pin_num = 0; pin_num < 16; pin_num++) {
+        if (pin_mask & (1 << pin_num)) {
+            uint16_t current_pin = (1 << pin_num);
+            
+            GPIO_InitTypeDef gpio_init = {0};
+            gpio_init.Pin = current_pin;
+            // Preserve existing mode configuration for this specific pin
+            gpio_init.Mode = get_gpio_pin_mode(gpio_port, current_pin);
+            gpio_init.Pull = gpio_pull;
+            gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
+
+            HAL_GPIO_Init(gpio_port, &gpio_init);
+        }
+    }
 
     elog_d(TAG, "GPIO pull set: port=%d, mask=0x%04X, pull=%d", port_id,
            pin_mask, pull);
@@ -1221,7 +1246,8 @@ static device_status_t special_io_set_mode(uint8_t target_id, uint64_t pin_mask,
             GPIO_InitTypeDef gpio_init = {0};
             gpio_init.Pin = pin_map[i].pin;
             gpio_init.Mode = gpio_mode;
-            gpio_init.Pull = GPIO_NOPULL;
+            // Preserve existing pull configuration
+            gpio_init.Pull = get_gpio_pin_pull(pin_map[i].port, pin_map[i].pin);
             gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
 
             HAL_GPIO_Init(pin_map[i].port, &gpio_init);
@@ -1283,8 +1309,8 @@ static device_status_t special_io_set_pull(uint8_t target_id, uint64_t pin_mask,
         if (pin_mask & (1ULL << i)) {
             GPIO_InitTypeDef gpio_init = {0};
             gpio_init.Pin = pin_map[i].pin;
-            gpio_init.Mode =
-                GPIO_MODE_INPUT;    // Assume input mode for pull config
+            // Preserve existing mode configuration
+            gpio_init.Mode = get_gpio_pin_mode(pin_map[i].port, pin_map[i].pin);
             gpio_init.Pull = gpio_pull;
             gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
 
@@ -1388,4 +1414,59 @@ static device_status_t special_io_read_level(uint8_t target_id,
     elog_d(TAG, "Special IO levels read: target=%d, levels=0x%016llX",
            target_id, *levels);
     return DEVICE_OK;
+}
+
+/* GPIO configuration helper functions implementation ----------------------- */
+
+/**
+ * @brief  Get current GPIO pin mode
+ * @param  port: GPIO port
+ * @param  pin: GPIO pin (HAL format, e.g., GPIO_PIN_0)
+ * @retval Current GPIO mode
+ */
+static uint32_t get_gpio_pin_mode(GPIO_TypeDef* port, uint16_t pin) {
+    // Find pin position (0-15)
+    uint8_t pin_pos = 0;
+    uint16_t temp_pin = pin;
+    while (temp_pin > 1) {
+        temp_pin >>= 1;
+        pin_pos++;
+    }
+    
+    // Read mode from MODER register (2 bits per pin)
+    uint32_t mode_bits = (port->MODER >> (pin_pos * 2)) & 0x03;
+    
+    switch (mode_bits) {
+        case 0x00: return GPIO_MODE_INPUT;
+        case 0x01: return GPIO_MODE_OUTPUT_PP;
+        case 0x02: return GPIO_MODE_AF_PP;
+        case 0x03: return GPIO_MODE_ANALOG;
+        default: return GPIO_MODE_INPUT;
+    }
+}
+
+/**
+ * @brief  Get current GPIO pin pull configuration
+ * @param  port: GPIO port
+ * @param  pin: GPIO pin (HAL format, e.g., GPIO_PIN_0)
+ * @retval Current GPIO pull configuration
+ */
+static uint32_t get_gpio_pin_pull(GPIO_TypeDef* port, uint16_t pin) {
+    // Find pin position (0-15)
+    uint8_t pin_pos = 0;
+    uint16_t temp_pin = pin;
+    while (temp_pin > 1) {
+        temp_pin >>= 1;
+        pin_pos++;
+    }
+    
+    // Read pull from PUPDR register (2 bits per pin)
+    uint32_t pull_bits = (port->PUPDR >> (pin_pos * 2)) & 0x03;
+    
+    switch (pull_bits) {
+        case 0x00: return GPIO_NOPULL;
+        case 0x01: return GPIO_PULLUP;
+        case 0x02: return GPIO_PULLDOWN;
+        default: return GPIO_NOPULL;
+    }
 }
