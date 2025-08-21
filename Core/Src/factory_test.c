@@ -143,9 +143,6 @@ static device_status_t io64_write_level(uint64_t pin_mask, uint8_t level);
 static device_status_t io64_read_level(uint64_t* levels);
 
 /* DIP switch control functions */
-static device_status_t dip_set_mode(uint8_t pin_mask, uint8_t mode);
-static device_status_t dip_set_pull(uint8_t pin_mask, uint8_t pull);
-static device_status_t dip_write_level(uint8_t pin_mask, uint8_t level);
 static device_status_t dip_read_level(uint8_t* levels);
 
 /* GPIO configuration helper functions */
@@ -671,55 +668,6 @@ void factory_test_handle_dip_switch_control(const factory_test_frame_t* frame) {
     elog_d(TAG, "DIP switch control: sub_id=0x%02X", sub_id);
 
     switch (sub_id) {
-        case 0x01:    // Set mode
-            if (frame->payload_len >=
-                3) {    // Sub-ID(1) + Pin-Mask(1) + Value(1) = 3
-                uint8_t pin_mask = frame->payload[1];
-                uint8_t value = frame->payload[2];
-
-                status = dip_set_mode(pin_mask, value);
-                uint8_t response_payload[2] = {sub_id, status};
-                factory_test_create_response_frame(
-                    &response, MSG_ID_DIP_SWITCH_CONTROL, response_payload, 2);
-            } else {
-                uint8_t response_payload[2] = {sub_id, DEVICE_ERR_EXECUTION};
-                factory_test_create_response_frame(
-                    &response, MSG_ID_DIP_SWITCH_CONTROL, response_payload, 2);
-            }
-            break;
-
-        case 0x02:    // Set pull
-            if (frame->payload_len >= 3) {
-                uint8_t pin_mask = frame->payload[1];
-                uint8_t value = frame->payload[2];
-
-                status = dip_set_pull(pin_mask, value);
-                uint8_t response_payload[2] = {sub_id, status};
-                factory_test_create_response_frame(
-                    &response, MSG_ID_DIP_SWITCH_CONTROL, response_payload, 2);
-            } else {
-                uint8_t response_payload[2] = {sub_id, DEVICE_ERR_EXECUTION};
-                factory_test_create_response_frame(
-                    &response, MSG_ID_DIP_SWITCH_CONTROL, response_payload, 2);
-            }
-            break;
-
-        case 0x03:    // Write level
-            if (frame->payload_len >= 3) {
-                uint8_t pin_mask = frame->payload[1];
-                uint8_t value = frame->payload[2];
-
-                status = dip_write_level(pin_mask, value);
-                uint8_t response_payload[2] = {sub_id, status};
-                factory_test_create_response_frame(
-                    &response, MSG_ID_DIP_SWITCH_CONTROL, response_payload, 2);
-            } else {
-                uint8_t response_payload[2] = {sub_id, DEVICE_ERR_EXECUTION};
-                factory_test_create_response_frame(
-                    &response, MSG_ID_DIP_SWITCH_CONTROL, response_payload, 2);
-            }
-            break;
-
         case 0x04:    // Read level
         {
             uint8_t levels = 0;
@@ -1400,129 +1348,6 @@ static device_status_t io64_read_level(uint64_t* levels) {
 }
 
 /* DIP switch control functions implementation ------------------------------ */
-
-/**
- * @brief  Set DIP switch pin mode
- * @param  pin_mask: Pin mask (8-bit)
- * @param  mode: GPIO mode
- * @retval Device status
- */
-static device_status_t dip_set_mode(uint8_t pin_mask, uint8_t mode) {
-    if (pin_mask == 0) {
-        return DEVICE_ERR_INVALID_PIN;
-    }
-
-    uint32_t gpio_mode;
-    switch (mode) {
-        case FACTORY_GPIO_MODE_INPUT:
-            gpio_mode = GPIO_MODE_INPUT;
-            break;
-        case FACTORY_GPIO_MODE_OUTPUT:
-            gpio_mode = GPIO_MODE_OUTPUT_PP;
-            break;
-        case FACTORY_GPIO_MODE_ANALOG:
-            gpio_mode = GPIO_MODE_ANALOG;
-            break;
-        default:
-            return DEVICE_ERR_EXECUTION;
-    }
-
-    // Configure each selected pin
-    for (uint8_t i = 0; i < 8; i++) {
-        if (pin_mask & (1 << i)) {
-            GPIO_InitTypeDef gpio_init = {0};
-            gpio_init.Pin = dip_pin_map[i].pin;
-            gpio_init.Mode = gpio_mode;
-            // Preserve existing pull configuration
-            gpio_init.Pull =
-                get_gpio_pin_pull(dip_pin_map[i].port, dip_pin_map[i].pin);
-            gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
-
-            HAL_GPIO_Init(dip_pin_map[i].port, &gpio_init);
-        }
-    }
-
-    elog_d(TAG, "DIP switch mode set: mask=0x%02X, mode=%d", pin_mask, mode);
-    return DEVICE_OK;
-}
-
-/**
- * @brief  Set DIP switch pin pull configuration
- * @param  pin_mask: Pin mask (8-bit)
- * @param  pull: Pull configuration
- * @retval Device status
- */
-static device_status_t dip_set_pull(uint8_t pin_mask, uint8_t pull) {
-    if (pin_mask == 0) {
-        return DEVICE_ERR_INVALID_PIN;
-    }
-
-    uint32_t gpio_pull;
-    switch (pull) {
-        case GPIO_PULL_DOWN:
-            gpio_pull = GPIO_PULLDOWN;
-            break;
-        case GPIO_PULL_UP:
-            gpio_pull = GPIO_PULLUP;
-            break;
-        case GPIO_PULL_NONE:
-            gpio_pull = GPIO_NOPULL;
-            break;
-        default:
-            return DEVICE_ERR_EXECUTION;
-    }
-
-    // Configure each selected pin
-    for (uint8_t i = 0; i < 8; i++) {
-        if (pin_mask & (1 << i)) {
-            GPIO_InitTypeDef gpio_init = {0};
-            gpio_init.Pin = dip_pin_map[i].pin;
-            // Preserve existing mode configuration
-            gpio_init.Mode =
-                get_gpio_pin_mode(dip_pin_map[i].port, dip_pin_map[i].pin);
-            gpio_init.Pull = gpio_pull;
-            gpio_init.Speed = GPIO_SPEED_FREQ_LOW;
-
-            HAL_GPIO_Init(dip_pin_map[i].port, &gpio_init);
-        }
-    }
-
-    elog_d(TAG, "DIP switch pull set: mask=0x%02X, pull=%d", pin_mask, pull);
-    return DEVICE_OK;
-}
-
-/**
- * @brief  Write DIP switch pin levels
- * @param  pin_mask: Pin mask (8-bit)
- * @param  level: Level to write
- * @retval Device status
- */
-static device_status_t dip_write_level(uint8_t pin_mask, uint8_t level) {
-    if (pin_mask == 0) {
-        return DEVICE_ERR_INVALID_PIN;
-    }
-
-    GPIO_PinState pin_state;
-    if (level == GPIO_LEVEL_HIGH) {
-        pin_state = GPIO_PIN_SET;
-    } else if (level == GPIO_LEVEL_LOW) {
-        pin_state = GPIO_PIN_RESET;
-    } else {
-        return DEVICE_ERR_EXECUTION;
-    }
-
-    // Write level to each selected pin
-    for (uint8_t i = 0; i < 8; i++) {
-        if (pin_mask & (1 << i)) {
-            HAL_GPIO_WritePin(dip_pin_map[i].port, dip_pin_map[i].pin,
-                              pin_state);
-        }
-    }
-
-    elog_d(TAG, "DIP switch level written: mask=0x%02X, level=%d", pin_mask,
-           level);
-    return DEVICE_OK;
-}
 
 /**
  * @brief  Read DIP switch pin levels
