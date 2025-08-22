@@ -215,11 +215,20 @@ std::unique_ptr<Message> ResetMessageHandler::processMessage(
     // 重置设备状态，但保留配置
     device->resetDevice();
 
+    // 创建响应消息但不立即发送，而是设置待回复标志位
     auto response = std::make_unique<Slave2Master::RstResponseMessage>();
     response->status = 0;    // Success
     response->lockStatus = rstMsg->lockStatus;
     response->clipLed = rstMsg->clipLed;
-    return std::move(response);
+    
+    // 存储待回复的响应并设置标志位
+    device->pendingResetResponse = std::move(response);
+    device->hasPendingResetResponse = true;
+    
+    elog_v("ResetMessageHandler", "Reset response queued for next active slot");
+    
+    // 返回 nullptr 表示不立即回复
+    return nullptr;
 }
 
 // Short ID Assignment Message Handler
@@ -334,7 +343,14 @@ std::unique_ptr<Message> SlaveControlHandler::processMessage(
         response->status = Slave2Master::ResponseStatusCode::SUCCESS;
     }
 
-    return std::move(response);
+    // 存储待回复的响应并设置标志位，避免与数据传输冲撞
+    device->pendingSlaveControlResponse = std::move(response);
+    device->hasPendingSlaveControlResponse = true;
+    
+    elog_v("SlaveControlHandler", "SlaveControl response queued for next active slot");
+    
+    // 返回 nullptr 表示不立即回复
+    return nullptr;
 }
 
 }    // namespace SlaveApp

@@ -33,6 +33,10 @@ SlaveDevice::SlaveDevice()
       isScheduledToStart(false),    // 初始未计划启动
       hasDataToSend(false),         // 初始无数据待发送
       isFirstCollection(true),      // 初始为第一次采集
+      hasPendingSlaveControlResponse(false),  // 初始无待回复的SlaveControl消息
+      hasPendingResetResponse(false),         // 初始无待回复的Reset消息
+      pendingSlaveControlResponse(nullptr),   // 初始化待回复的SlaveControl响应为空
+      pendingResetResponse(nullptr),          // 初始化待回复的Reset响应为空
       deviceStatus({}) {            // 初始化设备状态
 
     // Initialize continuity collector
@@ -162,24 +166,91 @@ void SlaveDevice::resetDevice() {
            "Device reset to READY state, configuration preserved");
 }
 
+void SlaveDevice::sendPendingResponses() {
+    // 发送待回复的Reset响应
+    if (hasPendingResetResponse && pendingResetResponse) {
+        elog_v(TAG, "Sending pending Reset response in active slot");
+        
+        std::vector<std::vector<uint8_t>> responseData =
+            processor.packSlave2MasterMessage(deviceId, *pendingResetResponse);
+        
+        // 发送所有片段
+        bool success = true;
+        for (auto& fragment : responseData) {
+            if (!send(fragment)) {
+                elog_e(TAG, "Failed to send Reset response fragment");
+                success = false;
+                break;
+            }
+        }
+        
+        if (success) {
+            elog_v(TAG, "Reset response sent successfully");
+        }
+        
+        // 清除待回复状态
+        hasPendingResetResponse = false;
+        pendingResetResponse.reset();
+    }
+    
+    // 发送待回复的SlaveControl响应
+    if (hasPendingSlaveControlResponse && pendingSlaveControlResponse) {
+        elog_v(TAG, "Sending pending SlaveControl response in active slot");
+        
+        std::vector<std::vector<uint8_t>> responseData =
+            processor.packSlave2MasterMessage(deviceId, *pendingSlaveControlResponse);
+        
+        // 发送所有片段
+        bool success = true;
+        for (auto& fragment : responseData) {
+            if (!send(fragment)) {
+                elog_e(TAG, "Failed to send SlaveControl response fragment");
+                success = false;
+                break;
+            }
+        }
+        
+        if (success) {
+            elog_v(TAG, "SlaveControl response sent successfully");
+        }
+        
+        // 清除待回复状态
+        hasPendingSlaveControlResponse = false;
+        pendingSlaveControlResponse.reset();
+    }
+}
+
 void SlaveDevice::onSlotChanged(const SlotInfo& slotInfo) {
-    // 只在采集状态下处理时隙事件
+    // 如果有待回复的响应，即使不在采集状态也要处理
+    if (!isCollecting && (hasPendingResetResponse || hasPendingSlaveControlResponse)) {
+        if (slotInfo.slotType == SlotType::ACTIVE && slotInfo.activePin == 0) {
+            elog_v(TAG, "Sending pending responses even when not collecting");
+            sendPendingResponses();
+        }
+        return;
+    }
+    
+    // 只在采集状态下处理其他时隙事件
     if (!isCollecting || !continuityCollector || !slotManager) {
         return;
     }
 
-    // 检查是否是本设备的第一个激活时隙，且有数据待发送
+    // 检查是否是本设备的第一个激活时隙
     if (slotInfo.slotType == SlotType::ACTIVE &&
-        slotInfo.activePin == 0 &&    // 第一个激活引脚
-        hasDataToSend && !isFirstCollection) {
-        elog_v(TAG,
-               "Reached own first active slot, sending cached data to backend");
+        slotInfo.activePin == 0) {    // 第一个激活引脚
+        elog_v(TAG, "Reached own first active slot");
 
-        // 发送缓存的数据
-        if (dataCollectionTask) {
-            dataCollectionTask->sendDataToBackend();
+        // 优先发送待回复的响应消息（避免与数据传输冲撞）
+        sendPendingResponses();
+
+        // 然后发送缓存的数据（如果有）
+        if (hasDataToSend && !isFirstCollection) {
+            elog_v(TAG, "Sending cached data to backend");
+            if (dataCollectionTask) {
+                dataCollectionTask->sendDataToBackend();
+            }
+            hasDataToSend = false;
         }
-        hasDataToSend = false;
     }
 
     // 通知采集器处理当前时隙

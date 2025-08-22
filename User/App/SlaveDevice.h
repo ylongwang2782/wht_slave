@@ -40,6 +40,12 @@ class SlaveDevice {
     bool hasDataToSend;                         // 是否有数据待发送
     bool isFirstCollection;                     // 是否是第一次采集
 
+    // 待回复消息管理（避免数据冲撞）
+    bool hasPendingSlaveControlResponse;        // 是否有待回复的SlaveControl消息
+    bool hasPendingResetResponse;               // 是否有待回复的Reset消息
+    std::unique_ptr<WhtsProtocol::Message> pendingSlaveControlResponse;  // 待回复的SlaveControl响应
+    std::unique_ptr<WhtsProtocol::Message> pendingResetResponse;         // 待回复的Reset响应
+
     // 设备状态，供外部读取和内部更新
     WhtsProtocol::DeviceStatus deviceStatus;
 
@@ -76,6 +82,11 @@ class SlaveDevice {
      * @return 是否发送成功
      */
     bool send(std::vector<uint8_t>& frame);
+
+    /**
+     * 发送待回复的响应消息（在时隙中发送以避免冲撞）
+     */
+    void sendPendingResponses();
 
     /**
      * 处理Master2Slave消息
