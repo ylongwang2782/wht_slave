@@ -31,6 +31,7 @@
 #include "elog.h"
 #include "factory_test.h"
 #include "gpio.h"
+#include "uart_cmd_handler.h"
 #include "usart.h"
 
 /* USER CODE END Includes */
@@ -175,6 +176,9 @@ void StartDefaultTask(void *argument) {
         // increase debug uart baudrate to 921600 for a better debug experience
         DEBUG_UART.Init.BaudRate = 921600;
         HAL_UART_Init(&DEBUG_UART);
+        
+        // 重新启动UART接收中断，因为波特率更改后中断会失效
+        uart_cmd_handler_restart_interrupt();
 
         main_app();
 

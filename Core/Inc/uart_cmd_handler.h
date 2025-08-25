@@ -40,6 +40,7 @@ struct UART_HandleTypeDef;
 
 /* Function prototypes -------------------------------------------------------*/
 void uart_cmd_handler_init(void);
+void uart_cmd_handler_restart_interrupt(void);
 void uart_cmd_handler_task(void *argument);
 void process_uart_command(char* command);
 

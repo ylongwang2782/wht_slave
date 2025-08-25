@@ -72,6 +72,15 @@ static void trim_string(char* str) {
 /* Public functions ----------------------------------------------------------*/
 
 /**
+ * @brief  Restart UART receive interrupt (call after baudrate change)
+ * @retval None
+ */
+void uart_cmd_handler_restart_interrupt(void) {
+    // 重新启动UART接收中断
+    HAL_UART_Receive_IT(&DEBUG_UART, &uart_rx_char, 1);
+}
+
+/**
  * @brief  Initialize UART command handler
  * @retval None
  */
