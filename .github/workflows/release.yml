@@ -43,8 +43,8 @@ jobs:
       - name: Build Firmware
         shell: bash
         run: |
-          cmake --preset Debug
-          cmake --build --preset Debug
+          cmake --preset Release
+          cmake --build --preset Release
 
       - name: Get Version from Git
         id: get_version
@@ -61,8 +61,8 @@ jobs:
       - name: Prepare Release Assets
         shell: bash
         run: |
-          cp build/Debug/wht_slave.hex wht-slave-${VERSION}.hex
-          cp build/Debug/wht_slave.bin wht-slave-${VERSION}.bin
+          cp build/Release/wht_slave.hex wht-slave-${VERSION}.hex
+          cp build/Release/wht_slave.bin wht-slave-${VERSION}.bin
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
