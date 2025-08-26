@@ -230,7 +230,12 @@ bool factory_test_process_entry_byte(uint8_t data) {
                    FACTORY_TEST_ENTRY_CMD_LEN) == 0) {
             entry_detection_active = false;
             test_state = FACTORY_TEST_ENABLED;    // 设置工厂测试状态
-            elog_i(TAG, "Factory test entry command detected!");
+            // elog_i(TAG, "Factory test entry command detected!");
+            // reply with "OK"
+            factory_test_frame_t response;
+            factory_test_create_response_frame(&response, MSG_ID_ENTER_TEST,
+                                               NULL, 0);
+            factory_test_send_response(&response);
             return true;
         } else {
             // Shift buffer left to continue detection

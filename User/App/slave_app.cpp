@@ -26,26 +26,17 @@ extern "C" uint32_t slave_device_get_sync_timestamp_ms(void* device) {
 }
 
 extern "C" int main_app(void) {
-    // UWB_Task_Init();
+    UWB_Task_Init();
 
-    // SlaveDevice slaveDevice;
+    SlaveDevice slaveDevice;
     
-    // // Register SlaveDevice with easylogger for synchronized timestamps
-    // g_global_slave_device = &slaveDevice;
-    // elog_set_slave_device(&slaveDevice, slave_device_get_sync_timestamp_ms);
+    // Register SlaveDevice with easylogger for synchronized timestamps
+    g_global_slave_device = &slaveDevice;
+    elog_set_slave_device(&slaveDevice, slave_device_get_sync_timestamp_ms);
     
-    // elog_i(TAG, "SlaveDevice registered with easylogger for synchronized timestamps");
+    elog_i(TAG, "SlaveDevice registered with easylogger for synchronized timestamps");
     
-    // slaveDevice.run();
-
-    // uint16_t adc_value;
-    // float battery_voltage;
-
-    // HAL_ADC_Start(&hadc1);
-    // HAL_ADC_PollForConversion(&hadc1, 10);
-    // adc_value = HAL_ADC_GetValue(&hadc1);
-
-    // battery_voltage = (adc_value / 4095.0f) * 3.15f * 2.0f;
+    slaveDevice.run();
     
     for (;;) {
 
