@@ -72,7 +72,7 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOG, LED1_Pin|LED2_Pin|LED3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(ELV3_GPIO_Port, ELV3_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, ELV4_Pin|ELV3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, ELV2_Pin|VALVE1_Pin, GPIO_PIN_RESET);
@@ -132,12 +132,10 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : IO8_Pin IO9_Pin IO26_Pin IO27_Pin
                            IO28_Pin IO29_Pin IO30_Pin IO31_Pin
-                           KEY5_Pin KEY6_Pin P_SENSOR_Pin UWB_RDY_Pin
-                           ELV4_Pin */
+                           KEY5_Pin KEY6_Pin P_SENSOR_Pin UWB_RDY_Pin */
   GPIO_InitStruct.Pin = IO8_Pin|IO9_Pin|IO26_Pin|IO27_Pin
                           |IO28_Pin|IO29_Pin|IO30_Pin|IO31_Pin
-                          |KEY5_Pin|KEY6_Pin|P_SENSOR_Pin|UWB_RDY_Pin
-                          |ELV4_Pin;
+                          |KEY5_Pin|KEY6_Pin|P_SENSOR_Pin|UWB_RDY_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -189,12 +187,12 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(UWB_INT_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : ELV3_Pin */
-  GPIO_InitStruct.Pin = ELV3_Pin;
+  /*Configure GPIO pins : ELV4_Pin ELV3_Pin */
+  GPIO_InitStruct.Pin = ELV4_Pin|ELV3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(ELV3_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : ELV2_Pin VALVE1_Pin */
   GPIO_InitStruct.Pin = ELV2_Pin|VALVE1_Pin;
