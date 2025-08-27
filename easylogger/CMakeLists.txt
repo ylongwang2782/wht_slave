@@ -1,5 +1,5 @@
 add_library(
-  easylogger STATIC
+  easylogger OBJECT
   plugins/file/elog_file.c
   plugins/file/elog_file_port.c
   port/elog_port.c

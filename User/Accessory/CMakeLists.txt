@@ -1,4 +1,7 @@
-target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/button.cpp
-                                       LockController.cpp)
+# Create Accessory module library
+add_library(AccessoryModule OBJECT
+    button.cpp
+    LockController.cpp
+)
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(AccessoryModule PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

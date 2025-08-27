@@ -1,17 +1,15 @@
-add_library(FreeRTOScpp INTERFACE)
-
-target_sources(FreeRTOScpp INTERFACE
+add_library(FreeRTOScpp OBJECT
     ./CallBack.cpp
     ./Lock.cpp
     ./ReadWrite.cpp
     ./TaskCpp.cpp
 )
 
-target_include_directories(FreeRTOScpp INTERFACE
+target_include_directories(FreeRTOScpp PUBLIC
     ./include
 )
 
 # Link with FreeRTOS kernel to access FreeRTOS.h
-target_link_libraries(FreeRTOScpp INTERFACE
+target_link_libraries(FreeRTOScpp PUBLIC
     FreeRTOS
 )

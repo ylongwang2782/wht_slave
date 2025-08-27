@@ -30,23 +30,39 @@ enable_language(C ASM)
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
 
+execute_process(
+  COMMAND git describe --tags --abbrev=0
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE GIT_TAG
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+# 提取 MAJOR, MINOR, PATCH
+string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" VERSION_MATCH ${GIT_TAG})
+if(VERSION_MATCH)
+  string(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)" "\\1"
+                       PROJECT_VERSION_MAJOR ${VERSION_MATCH})
+  string(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)" "\\2"
+                       PROJECT_VERSION_MINOR ${VERSION_MATCH})
+  string(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)" "\\3"
+                       PROJECT_VERSION_PATCH ${VERSION_MATCH})
+else()
+  message(WARNING "Invalid git tag: ${GIT_TAG}, using default version 0.0.0")
+  set(PROJECT_VERSION_MAJOR 0)
+  set(PROJECT_VERSION_MINOR 0)
+  set(PROJECT_VERSION_PATCH 0)
+endif()
+set(VERSION_STRING
+    "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
+)
+string(TIMESTAMP BUILD_DATE "%Y%m%d")
+
 set(UWB_CHIP_TYPE "CX310")
 set(RS485_DEBUG ON)
 
-if(UWB_CHIP_TYPE STREQUAL "DW1000")
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC UWB_CHIP_TYPE_DW1000)
-    target_link_libraries(${CMAKE_PROJECT_NAME} dw1000)
-elseif(UWB_CHIP_TYPE STREQUAL "CX310")
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC UWB_CHIP_TYPE_CX310)
-    target_link_libraries(${CMAKE_PROJECT_NAME} cx310)
-else()
-    message(FATAL_ERROR "Unsupported chip type: ${UWB_CHIP_TYPE}")
-endif()
-
 if(RS485_DEBUG)
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC RS485_DEBUG)
+  target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC RS485_DEBUG)
 else()
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC RS232_DEBUG)
+  target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC RS232_DEBUG)
 endif()
 
 # Add STM32CubeMX generated sources
@@ -80,51 +96,38 @@ target_compile_definitions(
 # Remove wrong libob.a library dependency when using cpp files
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 
-# Add linked libraries
-target_link_libraries(${CMAKE_PROJECT_NAME}
-    stm32cubemx
-    easylogger
-    FreeRTOScpp
-    WhtsProtocol
-    cx310
-    # Add user defined libraries
+# Set FreeRTOS headers path
+
+# Create unified static library containing all object libraries
+add_library(UnifiedLib STATIC)
+
+target_sources(
+  UnifiedLib
+  PRIVATE $<TARGET_OBJECTS:STM32_Drivers>
+          $<TARGET_OBJECTS:FreeRTOS>
+          $<TARGET_OBJECTS:FreeRTOScpp>
+          $<TARGET_OBJECTS:ProtocolCore>
+          $<TARGET_OBJECTS:UserModule>
+          $<TARGET_OBJECTS:BootloaderModule>
+          $<TARGET_OBJECTS:FactoryTestModule>)
+# Add all object libraries to the unified static library
+target_link_libraries(
+  UnifiedLib
+  PUBLIC STM32_Drivers
+         FreeRTOS
+         easylogger
+         FreeRTOScpp
+         ProtocolCore
+         UserModule
+         BootloaderModule
+         FactoryTestModule
+         )
+
+# Add linked libraries - now using the unified library
+target_link_libraries(
+  ${CMAKE_PROJECT_NAME} UnifiedLib # Add user defined libraries
 )
 
 # 设置cmake install指令，烧录程序
 include(${PROJECT_SOURCE_DIR}/cmake/flash_by_install.cmake)
 include(${PROJECT_SOURCE_DIR}/cmake/create_bin.cmake)
-
-# 获取 Git 标签作为版本号
-execute_process(
-  COMMAND git describe --tags --abbrev=0
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  OUTPUT_VARIABLE GIT_TAG
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-# 提取 MAJOR, MINOR, PATCH
-string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" VERSION_MATCH ${GIT_TAG})
-if(VERSION_MATCH)
-  string(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)" "\\1"
-                       PROJECT_VERSION_MAJOR ${VERSION_MATCH})
-  string(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)" "\\2"
-                       PROJECT_VERSION_MINOR ${VERSION_MATCH})
-  string(REGEX REPLACE "([0-9]+)\\.([0-9]+)\\.([0-9]+)" "\\3"
-                       PROJECT_VERSION_PATCH ${VERSION_MATCH})
-else()
-  message(WARNING "Invalid git tag: ${GIT_TAG}, using default version 0.0.0")
-  set(PROJECT_VERSION_MAJOR 0)
-  set(PROJECT_VERSION_MINOR 0)
-  set(PROJECT_VERSION_PATCH 0)
-endif()
-set(VERSION_STRING
-    "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
-)
-string(TIMESTAMP BUILD_DATE "%Y%m%d")
-
-# 添加版本定义，可以在代码中使用
-add_definitions(
-  -DFIRMWARE_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
-  -DFIRMWARE_VERSION_MINOR=${PROJECT_VERSION_MINOR}
-  -DFIRMWARE_VERSION_PATCH=${PROJECT_VERSION_PATCH}
-  -DFIRMWARE_VERSION_STRING="${VERSION_STRING}"
-  -DFIRMWARE_BUILD_DATE="${BUILD_DATE}")

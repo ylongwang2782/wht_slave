@@ -1,3 +1,8 @@
-target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/hptimer.cpp)
+# Create HPTimer module library
+add_library(HPTimerModule OBJECT
+    hptimer.cpp
+)
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(HPTimerModule PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_link_libraries(HPTimerModule PUBLIC STM32_Drivers)

@@ -425,9 +425,9 @@ bool SlaveDevice::AnnounceTask::sendAnnounceMessage() {
     // 创建 AnnounceMessage
     WhtsProtocol::Slave2Master::AnnounceMessage announceMsg;
     announceMsg.deviceId = parent.deviceId;
-    announceMsg.versionMajor = FIRMWARE_VERSION_MAJOR;
-    announceMsg.versionMinor = FIRMWARE_VERSION_MINOR;
-    announceMsg.versionPatch = FIRMWARE_VERSION_PATCH;
+    announceMsg.versionMajor = (uint8_t)FIRMWARE_VERSION_MAJOR;
+    announceMsg.versionMinor = (uint8_t)FIRMWARE_VERSION_MINOR;
+    announceMsg.versionPatch = (uint8_t)FIRMWARE_VERSION_PATCH;
 
     elog_d(TAG, "Creating announce message: ID=0x%08X, Version=%d.%d.%d",
            announceMsg.deviceId, announceMsg.versionMajor,
