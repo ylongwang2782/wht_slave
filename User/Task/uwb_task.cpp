@@ -7,8 +7,8 @@
 #include "deca_regs.h"
 #include "port.h"
 #elif UWB_CHIP_TYPE_CX310
-#include "CX310.hpp"
-#include "uwb_interface.hpp"
+#include "CX310.h"
+#include "uwb_interface.h"
 
 // 外部声明全局指针
 extern CX310_SlaveSpiAdapter *g_uwb_adapter;

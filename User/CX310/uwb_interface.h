@@ -5,9 +5,9 @@
 #include <queue>
 #include <vector>
 
-#include "CX310.hpp"
+#include "CX310.h"
 #include "FreeRTOScpp.h"
-#include "ICX310.hpp"
+#include "ICX310.h"
 #include "SemaphoreCPP.h"
 #include "TaskCPP.h"
 #include "cmsis_os2.h"

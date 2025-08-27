@@ -5,7 +5,7 @@ extern "C" {
 #endif
 
 #include "FreeRTOS.h"
-#include "hptimer.hpp"
+#include "hptimer.h"
 #include "task.h"
 
 

@@ -8,7 +8,7 @@
 #include <queue>
 #include <vector>
 
-#include "cx_uci.hpp"
+#include "cx_uci.h"
 #include "elog.h"
 
 #define UWB_GENERAL_TIMEOUT_MS 2000

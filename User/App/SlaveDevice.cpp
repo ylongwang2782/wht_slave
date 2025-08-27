@@ -7,8 +7,8 @@
 #include "adc.h"
 #include "cmsis_os2.h"
 #include "elog.h"
-#include "hal_uid.hpp"
-#include "hptimer.hpp"
+#include "hal_uid.h"
+#include "hptimer.h"
 #include "main.h"
 #include "uwb_task.h"
 

@@ -2,7 +2,7 @@
 
 #include "SlaveDevice.h"
 #include "elog.h"
-#include "hptimer.hpp"
+#include "hptimer.h"
 
 using namespace WhtsProtocol;
 

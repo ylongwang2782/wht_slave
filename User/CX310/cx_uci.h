@@ -5,7 +5,7 @@
 #include <cstring>
 #include <vector>
 
-#include "cx_uci_def.hpp"
+#include "cx_uci_def.h"
 
 class UciCtrlPcketBase {
    public:

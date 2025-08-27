@@ -8,7 +8,7 @@
 
 #include "FreeRTOS.h"
 #include "elog.h"
-#include "hptimer.hpp"
+#include "hptimer.h"
 #include "task.h"
 
 // 端口时钟使能函数

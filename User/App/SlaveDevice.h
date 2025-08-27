@@ -9,7 +9,7 @@
 #include "TaskCPP.h"
 #include "WhtsProtocol.h"
 #include "button.h"
-#include "hal_uid.hpp"
+#include "hal_uid.h"
 namespace SlaveApp {
 
 class IMaster2SlaveMessageHandler;

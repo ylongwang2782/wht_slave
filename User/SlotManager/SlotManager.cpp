@@ -1,6 +1,6 @@
 #include "SlotManager.h"
 #include "elog.h"
-#include "hptimer.hpp"
+#include "hptimer.h"
 
 SlotManager::SlotManager()
     : startSlot_(0),
