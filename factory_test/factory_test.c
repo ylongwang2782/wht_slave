@@ -233,8 +233,9 @@ bool factory_test_process_entry_byte(uint8_t data) {
             // elog_i(TAG, "Factory test entry command detected!");
             // reply with "OK"
             factory_test_frame_t response;
+            uint8_t status = 0x00;    // OK
             factory_test_create_response_frame(&response, MSG_ID_ENTER_TEST,
-                                               NULL, 0);
+                                               &status, 1);
             factory_test_send_response(&response);
             return true;
         } else {
