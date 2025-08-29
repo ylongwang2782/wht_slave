@@ -128,3 +128,9 @@ add_definitions(
   -DFIRMWARE_VERSION_PATCH=${PROJECT_VERSION_PATCH}
   -DFIRMWARE_VERSION_STRING="${VERSION_STRING}"
   -DFIRMWARE_BUILD_DATE="${BUILD_DATE}")
+
+# 合并 bootloader 和应用程序固件
+# 注意：必须在目标创建之后包含
+if(CMAKE_C_COMPILER_ID MATCHES "GNU")
+    include(${PROJECT_SOURCE_DIR}/cmake/combine_firmware.cmake)
+endif()

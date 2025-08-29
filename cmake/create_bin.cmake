@@ -21,6 +21,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "GNU")
       -j .ARM.exidx -j .preinit_array -j .init_array -j .fini_array -j .data
       $<TARGET_FILE:${CMAKE_PROJECT_NAME}>
       $<TARGET_FILE_DIR:${CMAKE_PROJECT_NAME}>/${CMAKE_PROJECT_NAME}.bin
+
     COMMENT "Generating HEX and BIN files")
 
 endif()

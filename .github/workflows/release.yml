@@ -40,6 +40,13 @@ jobs:
         with:
           release: "14.2.Rel1"
 
+      - name: Setup SRecord Tools
+        shell: bash
+        run: |
+            curl -L -o srecord.zip https://sourceforge.net/projects/srecord/files/srecord/1.65.0/srecord-1.65.0-win64.zip/download
+            unzip -q srecord.zip
+            echo "$(pwd)/srecord-1.65.0-win64/bin" >> $GITHUB_PATH
+
       - name: Build Firmware
         shell: bash
         run: |
@@ -61,8 +68,13 @@ jobs:
       - name: Prepare Release Assets
         shell: bash
         run: |
+          # 复制标准固件文件
           cp build/Release/wht_slave.hex wht-slave-${VERSION}.hex
           cp build/Release/wht_slave.bin wht-slave-${VERSION}.bin
+          
+          # 复制合并固件文件
+          cp build/Release/wht_slave_combined.hex wht-slave-combined-${VERSION}.hex
+          cp build/Release/wht_slave_combined.bin wht-slave-combined-${VERSION}.bin
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -70,7 +82,11 @@ jobs:
           tag_name: ${{ steps.get_version.outputs.version }}
           name: Release ${{ steps.get_version.outputs.version }}
           generate_release_notes: true
-          files: wht-slave-${{ steps.get_version.outputs.version }}.hex, wht-slave-${{ steps.get_version.outputs.version }}.bin
+          files: |
+            wht-slave-${{ steps.get_version.outputs.version }}.hex
+            wht-slave-${{ steps.get_version.outputs.version }}.bin
+            wht-slave-combined-${{ steps.get_version.outputs.version }}.hex
+            wht-slave-combined-${{ steps.get_version.outputs.version }}.bin
           draft: false
           prerelease: false
         env:
