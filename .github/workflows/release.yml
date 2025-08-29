@@ -17,7 +17,7 @@ permissions:
 jobs:
   build-and-release:
     name: Build Firmware and Create Release
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -43,9 +43,8 @@ jobs:
       - name: Setup SRecord Tools
         shell: bash
         run: |
-            curl -L -o srecord.zip https://sourceforge.net/projects/srecord/files/srecord/1.65.0/srecord-1.65.0-win64.zip/download
-            unzip -q srecord.zip
-            echo "$(pwd)/srecord-1.65.0-win64/bin" >> $GITHUB_PATH
+            sudo apt-get update
+            sudo apt-get install -y srecord
 
       - name: Build Firmware
         shell: bash
