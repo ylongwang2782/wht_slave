@@ -5,16 +5,14 @@
 #include <queue>
 #include <vector>
 
-#include "CX310.hpp"
-#include "FreeRTOScpp.h"
 #include "ICX310.hpp"
 #include "SemaphoreCPP.h"
-#include "TaskCPP.h"
-#include "cmsis_os2.h"
-#include "gpio.h"
+#include "cmsis_os.h"
 #include "main.h"
 #include "spi.h"
 #include "stm32f4xx_hal.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 class CX310_SlaveSpiAdapter : public ICX310 {
    public:

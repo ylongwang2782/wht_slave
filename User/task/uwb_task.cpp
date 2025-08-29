@@ -181,7 +181,7 @@ static void uwb_comm_task(void *argument) {
 }
 #elif UWB_CHIP_TYPE_CX310
 
-#define UWB_TX_DELAY_MS 5
+#define UWB_TX_DELAY_MS 0
 
 static void uwb_comm_task(void *argument) {
     static const char *TAG = "uwb_comm";
@@ -225,7 +225,7 @@ static void uwb_comm_task(void *argument) {
             rx_msg.timestamp = osKernelGetTickCount();
             rx_msg.status_reg = 0;
             osMessageQueuePut(uwb_rxQueue, &rx_msg, 0, 0);
-            osDelay(UWB_TX_DELAY_MS);
+            // osDelay(UWB_TX_DELAY_MS);
         }
 
         uwb.update();

@@ -165,6 +165,10 @@ standard names. */
 
 /* USER CODE BEGIN Defines */
 /* Section where parameter definitions can be added (for instance, to override default ones in FreeRTOS.h) */
+
+/* 关闭时间片轮转 - 相同优先级的任务不会轮转执行 */
+#define configUSE_TIME_SLICING                   0
+
 /* USER CODE END Defines */
 
 #endif /* FREERTOS_CONFIG_H */

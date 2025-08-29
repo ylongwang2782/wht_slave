@@ -40,6 +40,7 @@ class CX310 {
 
     std::function<bool(const UciCtrlPacket&)> check_rsp = nullptr;
     std::function<bool()> cmd_packer = nullptr;
+    bool uwb_tx_done;
 
     /**
      * @brief 初始化
@@ -438,6 +439,138 @@ class CX310 {
         elog_e(TAG, "set hprf fail");
         return false;
     }
+
+    bool set_auto_recv_en(uint8_t en) {
+        if (!__check_rdy()) {
+            return false;
+        }
+        cmd_packer = [this, &en]() {
+            return uci_cmd.core_set_config(PARAM_CX_AUTO_RX_EN_ID, 1, &en);
+        };
+        check_rsp = [this](const UciCtrlPacket& rsp) {
+            return uci_cmd.check_core_set_config_rsp(rsp);
+        };
+        if (__send_packet()) {
+            elog_i(TAG, " set auto recv %d", en);
+            return true;
+        }
+        elog_e(TAG, " set auto recv fail");
+        return false;
+    }
+
+    bool get_auto_recv_en(uint8_t& en) {
+        uint8_t param_id;
+        uint8_t val_len;
+        if (!__check_rdy()) {
+            return false;
+        }
+        cmd_packer = [this]() {
+            return uci_cmd.core_get_config(PARAM_CX_AUTO_RX_EN_ID);
+        };
+        check_rsp = [this, &param_id, &val_len, &en](const UciCtrlPacket& rsp) {
+            return uci_cmd.check_core_get_config_rsp(rsp, &param_id, &val_len,
+                                                     &en);
+        };
+        if (__send_packet()) {
+            if (param_id != PARAM_CX_AUTO_RX_EN_ID) {
+                elog_e(TAG, " get config id %d", param_id);
+                return false;
+            }
+        }
+        elog_i(TAG, " get auto recv %d", en);
+        return true;
+    }
+
+    bool set_recv_delay(uint32_t delay_us) {
+        if (!__check_rdy()) {
+            return false;
+        }
+        cmd_packer = [this, &delay_us]() {
+            return uci_cmd.core_set_config(
+                PARAM_CX_RX_EN_DELAY_ID, 4,
+                reinterpret_cast<uint8_t*>(&delay_us));
+        };
+        check_rsp = [this](const UciCtrlPacket& rsp) {
+            return uci_cmd.check_core_set_config_rsp(rsp);
+        };
+        if (__send_packet()) {
+            elog_i(TAG, " set recv delay %d us", delay_us);
+            return true;
+        }
+        elog_e(TAG, " set recv delay fail");
+        return false;
+    }
+
+    bool get_recv_delay(uint32_t& delay_us) {
+        uint8_t param_id;
+        uint8_t val_len;
+        if (!__check_rdy()) {
+            return false;
+        }
+        cmd_packer = [this]() {
+            return uci_cmd.core_get_config(PARAM_CX_RX_EN_DELAY_ID);
+        };
+        check_rsp = [this, &param_id, &val_len,
+                     &delay_us](const UciCtrlPacket& rsp) {
+            return uci_cmd.check_core_get_config_rsp(
+                rsp, &param_id, &val_len,
+                reinterpret_cast<uint8_t*>(&delay_us));
+        };
+        if (__send_packet()) {
+            if (param_id != PARAM_CX_RX_EN_DELAY_ID) {
+                elog_e(TAG, " get config id %d", param_id);
+                return false;
+            }
+        }
+        elog_i(TAG, " get recv delay %d us", delay_us);
+        return true;
+    }
+
+    bool set_recv_timeout(uint32_t timeout_us) {
+        if (!__check_rdy()) {
+            return false;
+        }
+        cmd_packer = [this, &timeout_us]() {
+            return uci_cmd.core_set_config(
+                PARAM_CX_RX_TIMEOUT_ID, 4,
+                reinterpret_cast<uint8_t*>(&timeout_us));
+        };
+        check_rsp = [this](const UciCtrlPacket& rsp) {
+            return uci_cmd.check_core_set_config_rsp(rsp);
+        };
+        if (__send_packet()) {
+            elog_i(TAG, " set recv timeout %d us", timeout_us);
+            return true;
+        }
+        elog_e(TAG, " set recv timeout fail");
+        return false;
+    }
+
+    bool get_recv_timeout(uint32_t& timeout_us) {
+        uint8_t param_id;
+        uint8_t val_len;
+        if (!__check_rdy()) {
+            return false;
+        }
+        cmd_packer = [this]() {
+            return uci_cmd.core_get_config(PARAM_CX_RX_TIMEOUT_ID);
+        };
+        check_rsp = [this, &param_id, &val_len,
+                     &timeout_us](const UciCtrlPacket& rsp) {
+            return uci_cmd.check_core_get_config_rsp(
+                rsp, &param_id, &val_len,
+                reinterpret_cast<uint8_t*>(&timeout_us));
+        };
+        if (__send_packet()) {
+            if (param_id != PARAM_CX_RX_TIMEOUT_ID) {
+                elog_e(TAG, " get config id %d", param_id);
+                return false;
+            }
+        }
+        elog_i(TAG, " get recv timeout %d us", timeout_us);
+        return true;
+    }
+
     bool set_nooploop() {
         if (!__check_rdy()) {
             return false;
@@ -676,7 +809,9 @@ class CX310 {
         init_success &=
             set_psdu_data_rate(PARAM_PSDU_DATA_RATE_7_8);    // PSDU data rate 4
 
+        init_success &= set_recv_delay(1000);
         init_success &= set_tx_power(3);    // TX power 5
+        // init_success &= set_auto_recv_en(1);
         return 0;
     }
 
@@ -863,6 +998,7 @@ class CX310 {
         bool send_flag = true;
         bool pack_all_payload = false;
         bool ret = false;
+        uint8_t index = 0;
         while (1) {
             if (send_flag) {
                 send_flag = false;
