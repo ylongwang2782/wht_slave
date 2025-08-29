@@ -863,7 +863,6 @@ class CX310 {
         bool send_flag = true;
         bool pack_all_payload = false;
         bool ret = false;
-        uint8_t index = 0;
         while (1) {
             if (send_flag) {
                 send_flag = false;

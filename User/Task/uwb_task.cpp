@@ -45,11 +45,10 @@ static osSemaphoreId_t uwb_txSemaphore;    // UWB发送信号量
 typedef void (*uwb_rx_callback_t)(const uwb_rx_msg_t *msg);
 static uwb_rx_callback_t uwb_rx_callback = NULL;
 
+#if UWB_CHIP_TYPE_DW1000
 static uint8_t rx_buffer[FRAME_LEN_MAX];
 static uint32_t status_reg = 0;
 static uint16_t frame_len = 0;
-
-#if UWB_CHIP_TYPE_DW1000
 /* Default communication configuration. */
 static dwt_config_t config = {
     5,                  // 通道号，推荐5或2，5抗干扰稍强
@@ -181,6 +180,9 @@ static void uwb_comm_task(void *argument) {
     }
 }
 #elif UWB_CHIP_TYPE_CX310
+
+#define UWB_TX_DELAY_MS 5
+
 static void uwb_comm_task(void *argument) {
     static const char *TAG = "uwb_comm";
     uwb_tx_msg_t tx_msg;
@@ -223,7 +225,7 @@ static void uwb_comm_task(void *argument) {
             rx_msg.timestamp = osKernelGetTickCount();
             rx_msg.status_reg = 0;
             osMessageQueuePut(uwb_rxQueue, &rx_msg, 0, 0);
-            osDelay(20);
+            osDelay(UWB_TX_DELAY_MS);
         }
 
         uwb.update();

@@ -341,9 +341,14 @@ std::unique_ptr<Message> SlaveControlHandler::processMessage(
         device->scheduledStartTime = 0;
 
         response->status = Slave2Master::ResponseStatusCode::SUCCESS;
+        
+        // 对于停止消息，立即返回响应而不是排队等待时隙
+        // 因为停止后SlotManager已停止，不会再有时隙事件来发送排队的响应
+        elog_v("SlaveControlHandler", "Sending stop response immediately");
+        return std::move(response);
     }
 
-    // 存储待回复的响应并设置标志位，避免与数据传输冲撞
+    // 对于启动消息，存储待回复的响应并设置标志位，避免与数据传输冲撞
     device->pendingSlaveControlResponse = std::move(response);
     device->hasPendingSlaveControlResponse = true;
     
