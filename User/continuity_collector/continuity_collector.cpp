@@ -83,7 +83,7 @@ bool ContinuityCollector::Configure(const CollectorConfig &config)
         // 监控内存使用情况
         size_t totalElements = m_config.m_totalDetectionNum * m_config.m_num;
         size_t totalBytes = totalElements * sizeof(ContinuityState);
-        elog_i(TAG, "Memory allocated: %d rows x %d cols = %d elements (%d bytes)", m_config.m_totalDetectionNum,
+        elog_v(TAG, "Memory allocated: %d rows x %d cols = %d elements (%d bytes)", m_config.m_totalDetectionNum,
                m_config.m_num, totalElements, totalBytes);
     }
 

@@ -236,7 +236,7 @@ void SlaveDevice::OnSlotChanged(const SlotInfo &slotInfo)
         return;
     }
 
-    // 只在采集状态下处理其他时隙事件
+    // 只在采集状态下处理采集相关的时隙事件
     if (!m_isCollecting || !m_continuityCollector || !m_slotManager)
     {
         return;
@@ -245,20 +245,15 @@ void SlaveDevice::OnSlotChanged(const SlotInfo &slotInfo)
     // 检查是否是本设备的第一个激活时隙
     if (slotInfo.m_slotType == SlotType::ACTIVE && slotInfo.m_activePin == 0)
     { // 第一个激活引脚
-        elog_v(TAG, "Reached own first active slot");
 
         // 优先发送待回复的响应消息（避免与数据传输冲撞）
         sendPendingResponses();
 
-        // 然后发送缓存的数据（如果有）
-        if (m_hasDataToSend && !m_isFirstCollection)
+        // 发送数据到后端（每个周期都发送当前采集的数据）
+        if (m_dataCollectionTask)
         {
-            elog_v(TAG, "Sending cached data to backend");
-            if (m_dataCollectionTask)
-            {
-                m_dataCollectionTask->sendDataToBackend();
-            }
-            m_hasDataToSend = false;
+            elog_v(TAG, "Sending current collection data to backend");
+            m_dataCollectionTask->sendDataToBackend();
         }
     }
 
@@ -269,41 +264,19 @@ void SlaveDevice::OnSlotChanged(const SlotInfo &slotInfo)
     // 检查采集是否完成
     if (m_continuityCollector->IsCollectionComplete())
     {
-        elog_v(TAG, "Data collection cycle completed");
+        elog_v(TAG, "Data collection cycle completed, saving data for next cycle");
 
-        // 如果不是第一次采集，保存数据准备在下次自己的时隙发送
-        if (!m_isFirstCollection)
-        {
-            const auto dataVector = m_continuityCollector->GetDataVector();
-            lastCollectionData = dataVector;
-            m_hasDataToSend = true;
-            elog_v(TAG, "Saved %d bytes of data for next transmission", dataVector.size());
-        }
-        else
-        {
-            // 第一次采集完成，标记为非第一次
-            m_isFirstCollection = false;
-            elog_v(TAG, "First collection completed, no data to send yet");
-        }
+        // 保存当前采集的数据，供下一个周期发送
+        const auto dataVector = m_continuityCollector->GetDataVector();
+        lastCollectionData = dataVector;
+        m_hasDataToSend = true;
+        elog_v(TAG, "Saved %d bytes of data for next cycle transmission", dataVector.size());
 
-        // 清空数据矩阵并准备下一轮采集
+        // 清空数据矩阵为下一次采集做准备
         m_continuityCollector->ClearData();
 
-        // 重新启动采集器
-        if (m_continuityCollector->StartCollection())
-        {
-            elog_v(TAG, "Starting new data collection cycle");
-        }
-        else
-        {
-            elog_e(TAG, "Failed to start new data collection cycle");
-            m_isCollecting = false;
-            m_deviceState = SlaveDeviceState::DEV_ERR;
-            if (m_slotManager)
-            {
-                m_slotManager->Stop();
-            }
-        }
+        // 在单周期模式下，不立即停止采集状态，让SlotManager完成整个周期
+        // SlotManager会在完成单周期后自动停止，那时再更新状态
     }
 }
 
@@ -531,14 +504,30 @@ void SlaveDevice::DataCollectionTask::task()
 {
     elog_d(TAG, "Data collection task started");
 
+    bool wasSlotManagerRunning = false;
+
     for (;;)
     {
         // 处理数据采集状态
         processDataCollection();
 
-        // 处理时隙管理器状态
-        if (parent.m_slotManager && parent.m_isCollecting)
+        // 处理时隙管理器状态（只要SlotManager在运行就需要处理）
+        if (parent.m_slotManager)
         {
+            bool isCurrentlyRunning = parent.m_slotManager->IsRunning();
+
+            // 检测SlotManager从运行状态变为停止状态
+            if (wasSlotManagerRunning && !isCurrentlyRunning && parent.m_isCollecting)
+            {
+                elog_v(TAG, "SlotManager stopped, single cycle completed");
+                parent.m_isCollecting = false;
+                parent.m_deviceState = SlaveDeviceState::IDLE;
+                parent.m_isScheduledToStart = false;
+                parent.m_scheduledStartTime = 0;
+            }
+
+            wasSlotManagerRunning = isCurrentlyRunning;
+
             parent.m_slotManager->Process();
         }
 
@@ -557,13 +546,32 @@ void SlaveDevice::DataCollectionTask::processDataCollection() const
         // 检查是否到达启动时间
         if (currentTimeUs >= parent.m_scheduledStartTime)
         {
-            elog_i(TAG,
+            elog_v(TAG,
                    "Scheduled start time reached, starting data collection. "
                    "Current: %lu us, Scheduled: %lu us",
                    static_cast<unsigned long>(currentTimeUs), static_cast<unsigned long>(parent.m_scheduledStartTime));
 
+            // 配置和启动采集器
+            bool collectorReady = true;
+            if (parent.m_continuityCollector && parent.m_slotManager)
+            {
+                // 从SlotManager获取总时隙数作为总周期数
+                uint16_t totalCycles = parent.m_slotManager->GetTotalSlots();
+                CollectorConfig collectorConfig(parent.currentConfig.testCount, totalCycles);
+                if (!parent.m_continuityCollector->Configure(collectorConfig))
+                {
+                    elog_e(TAG, "Failed to configure continuity collector for scheduled start");
+                    collectorReady = false;
+                }
+                else
+                {
+                    elog_v(TAG, "Continuity collector configured for delayed start - TestCount: %d, TotalCycles: %d",
+                           parent.currentConfig.testCount, totalCycles);
+                }
+            }
+
             // 启动采集和时隙管理器
-            if (parent.m_continuityCollector && parent.m_slotManager &&
+            if (collectorReady && parent.m_continuityCollector && parent.m_slotManager &&
                 parent.m_continuityCollector->StartCollection() && parent.m_slotManager->Start())
             {
                 parent.m_isCollecting = true;
@@ -571,7 +579,7 @@ void SlaveDevice::DataCollectionTask::processDataCollection() const
                 parent.m_isScheduledToStart = false;
                 parent.m_scheduledStartTime = 0;
                 parent.m_isFirstCollection = true; // 重置为第一次采集
-                elog_i(TAG, "Data collection and slot management started "
+                elog_v(TAG, "Data collection and slot management started "
                             "successfully from scheduled start");
             }
             else
@@ -635,8 +643,9 @@ void SlaveDevice::DataCollectionTask::sendDataToBackend() const
         if (success)
         {
             elog_v(TAG, "Cached data successfully sent to backend (%d fragments)", packedData.size());
-            // 发送成功后清空缓存数据
+            // 发送成功后清空缓存数据和标志
             parent.lastCollectionData.clear();
+            parent.m_hasDataToSend = false;
         }
         else
         {
@@ -662,7 +671,7 @@ SlaveDevice::SlaveDataProcT::SlaveDataProcT(SlaveDevice &parent)
 
 void SlaveDevice::SlaveDataProcT::task()
 {
-    elog_i(TAG, "SlaveDataProcT started");
+    elog_v(TAG, "SlaveDataProcT started");
     uwbRxMsg msg;
     for (;;)
     {
@@ -675,7 +684,7 @@ void SlaveDevice::SlaveDataProcT::task()
             if (!recvData.empty())
             {
                 // process recvData
-                elog_d(TAG, "recvData size: %d", recvData.size());
+                elog_v(TAG, "recvData size: %d", recvData.size());
                 parent.m_processor.processReceivedData(recvData);
 
                 // process complete frame

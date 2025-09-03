@@ -25,7 +25,7 @@ typedef struct
 {
     uint16_t dataLen;
     uint8_t data[FRAME_LEN_MAX];
-    uint32_t timestamp;  // 接收时间戳
+    uint32_t timestamp; // 接收时间戳
     uint32_t statusReg; // 状态寄存器值
 } uwbRxMsg;
 

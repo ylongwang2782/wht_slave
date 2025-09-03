@@ -16,23 +16,152 @@ std::unique_ptr<Message> SyncMessageHandler::ProcessMessage(const Message &messa
     if (!syncMsg)
         return nullptr;
 
-    elog_v("SyncMessageHandler", "Processing sync message - Timestamp: %lu us",
-           static_cast<unsigned long>(syncMsg->timestamp));
+    elog_v("SyncMessageHandler",
+           "Processing new sync message - Mode: %d, Interval: %d ms, CurrentTime: %lu us, StartTime: %lu us",
+           syncMsg->mode, syncMsg->interval, static_cast<unsigned long>(syncMsg->currentTime),
+           static_cast<unsigned long>(syncMsg->startTime));
 
-    // 进行时间校准，计算与主机时间的偏移量
+    // 1. 进行时间校准，计算与主机时间的偏移量
     uint64_t localTimestamp = HptimerGetUs();
-    int64_t timeOffset = static_cast<int64_t>(syncMsg->timestamp) - static_cast<int64_t>(localTimestamp);
-
-    // 存储时间偏移量用于后续采集任务
+    int64_t timeOffset = static_cast<int64_t>(syncMsg->currentTime) - static_cast<int64_t>(localTimestamp);
     device->m_timeOffset = timeOffset;
 
-    elog_i("SyncMessageHandler",
-           "Local: %lu us, Master: %lu us, "
-           "Offset: %lu us",
-           static_cast<unsigned long>(localTimestamp), static_cast<unsigned long>(syncMsg->timestamp),
-           static_cast<unsigned long>(timeOffset));
+    elog_v("SyncMessageHandler", "Time sync - Local: %lu us, Master: %lu us, Offset: %ld us",
+           static_cast<unsigned long>(localTimestamp), static_cast<unsigned long>(syncMsg->currentTime),
+           static_cast<long>(timeOffset));
 
-    return nullptr;
+    // 2. 存储采集间隔
+    device->currentConfig.interval = syncMsg->interval;
+
+    // 3. 根据模式设置采集配置
+    switch (syncMsg->mode)
+    {
+    case 0: // 导通检测
+        device->currentConfig.mode = CollectionMode::CONDUCTION;
+        break;
+    case 1: // 阻值检测
+        device->currentConfig.mode = CollectionMode::RESISTANCE;
+        break;
+    case 2: // 卡钉检测
+        device->currentConfig.mode = CollectionMode::CLIP;
+        break;
+    default:
+        elog_w("SyncMessageHandler", "Unknown collection mode: %d", syncMsg->mode);
+        return nullptr;
+    }
+
+    // 4. 查找本从机的配置
+    bool configFound = false;
+    for (const auto &config : syncMsg->slaveConfigs)
+    {
+        if (config.slaveId == device->m_deviceId)
+        {
+            device->currentConfig.timeSlot = config.timeSlot;
+            device->currentConfig.testCount = config.testCount;
+            device->m_isConfigured = true;
+            configFound = true;
+
+            elog_v("SyncMessageHandler", "Found config for device 0x%08X - TimeSlot: %d, TestCount: %d",
+                   device->m_deviceId, config.timeSlot, config.testCount);
+            break;
+        }
+    }
+
+    if (!configFound)
+    {
+        elog_w("SyncMessageHandler", "No configuration found for device 0x%08X", device->m_deviceId);
+        device->m_isConfigured = false;
+        return nullptr;
+    }
+
+    // 5. 设置延迟启动时间
+    device->m_scheduledStartTime = syncMsg->startTime;
+    device->m_isScheduledToStart = true;
+
+    // 6. 配置采集器
+    // totalCycles = sum of salve's testCount
+    uint16_t totalCycles = 0;
+
+    for (const auto &config : syncMsg->slaveConfigs)
+    {
+        totalCycles += config.testCount;
+    }
+
+    if (device->m_continuityCollector)
+    {
+        CollectorConfig collectorConfig(device->currentConfig.testCount, totalCycles);
+        if (!device->m_continuityCollector->Configure(collectorConfig))
+        {
+            elog_e("SyncMessageHandler", "Failed to configure continuity collector");
+            device->m_deviceState = SlaveDeviceState::DEV_ERR;
+            return nullptr;
+        }
+        elog_v("SyncMessageHandler", "Continuity collector configured - TestCount: %d, TotalCycles: %d",
+               device->currentConfig.testCount, totalCycles);
+    }
+
+    // 7. 配置时隙管理器（先停止再配置）
+    if (device->m_slotManager)
+    {
+        // 先停止当前运行的时隙管理器
+        device->m_slotManager->Stop();
+
+        // calculate startSlot
+        uint16_t startSlot = 0;
+        for (const auto &config : syncMsg->slaveConfigs)
+        {
+            if (config.slaveId == device->m_deviceId)
+            {
+                break;
+            }
+            startSlot += config.testCount;
+        }
+
+        uint8_t deviceSlotCount = device->currentConfig.testCount; // 每个设备占用一个时隙
+        uint16_t totalSlotCount = totalCycles;                     // 总时隙数等于从机数量
+        uint32_t slotIntervalMs = device->currentConfig.interval;
+
+        // 使用单周期模式配置SlotManager
+        if (!device->m_slotManager->Configure(startSlot, deviceSlotCount, totalSlotCount, slotIntervalMs, true))
+        {
+            elog_e("SyncMessageHandler", "Failed to configure slot manager");
+            device->m_deviceState = SlaveDeviceState::DEV_ERR;
+            return nullptr;
+        }
+        elog_v("SyncMessageHandler",
+               "Slot manager configured (single cycle) - StartSlot: %d, TotalSlots: %d, Interval: %d ms", startSlot,
+               totalSlotCount, slotIntervalMs);
+    }
+
+    // 8. 检查是否立即启动或延迟启动
+    uint64_t currentSyncTime = device->GetSyncTimestampUs();
+    if (currentSyncTime >= syncMsg->startTime)
+    {
+        // 立即启动数据采集
+        elog_v("SyncMessageHandler", "Starting collection immediately (start time already reached)");
+        if (device->m_continuityCollector && device->m_slotManager &&
+            device->m_continuityCollector->StartCollection() && device->m_slotManager->Start())
+        {
+            device->m_isCollecting = true;
+            device->m_deviceState = SlaveDeviceState::RUNNING;
+            device->m_isFirstCollection = true;
+            elog_v("SyncMessageHandler", "Data collection and slot management started successfully");
+        }
+        else
+        {
+            elog_e("SyncMessageHandler", "Failed to start data collection or slot management");
+            device->m_deviceState = SlaveDeviceState::DEV_ERR;
+        }
+    }
+    else
+    {
+        // 延迟启动
+        uint64_t delayUs = syncMsg->startTime - currentSyncTime;
+        device->m_deviceState = SlaveDeviceState::READY;
+        elog_v("SyncMessageHandler", "Collection scheduled to start in %lu us", static_cast<unsigned long>(delayUs));
+    }
+
+    return nullptr; // SyncMessage 不需要响应
 }
 
 // SetTime Message Handler
@@ -76,24 +205,27 @@ std::unique_ptr<Message> ConductionConfigHandler::ProcessMessage(const Message &
     elog_v("ConductionConfigHandler", "Processing conduction configuration - Time slot: %d, Interval: %dms",
            static_cast<int>(configMsg->timeSlot), static_cast<int>(configMsg->interval));
 
-    // 创建采集器配置（新版本只需要引脚数量和总时隙数）
-    device->currentConfig =
-        CollectorConfig(static_cast<uint8_t>(configMsg->conductionNum),     // 导通检测数量（本设备负责的引脚数）
-                        static_cast<uint8_t>(configMsg->totalConductionNum) // 总检测数量（总时隙数）
-        );
+    // DEPRECATED: 这个处理器已被新的SyncMessage替代，但为了兼容性仍然保留
+    // 更新从机配置
+    device->currentConfig.mode = CollectionMode::CONDUCTION;
+    device->currentConfig.timeSlot = configMsg->timeSlot;
+    device->currentConfig.interval = configMsg->interval;
+    device->currentConfig.testCount = configMsg->conductionNum;
 
-    // 配置采集器和时隙管理器
-    bool collectorConfigured = device->m_continuityCollector->Configure(device->currentConfig);
+    // 配置采集器
+    CollectorConfig collectorConfig(configMsg->conductionNum, configMsg->totalConductionNum);
+    bool collectorConfigured = device->m_continuityCollector->Configure(collectorConfig);
     bool slotManagerConfigured = false;
 
     if (collectorConfigured && device->m_slotManager)
     {
-        // 配置时隙管理器
+        // 配置时隙管理器（使用单周期模式）
         slotManagerConfigured =
             device->m_slotManager->Configure(static_cast<uint8_t>(configMsg->startConductionNum), // 起始时隙
                                              static_cast<uint8_t>(configMsg->conductionNum),      // 设备时隙数量
                                              static_cast<uint8_t>(configMsg->totalConductionNum), // 总时隙数
-                                             static_cast<uint32_t>(configMsg->interval)           // 时隙间隔(ms)
+                                             static_cast<uint32_t>(configMsg->interval),          // 时隙间隔(ms)
+                                             true                                                 // 单周期模式
             );
     }
 
@@ -108,10 +240,10 @@ std::unique_ptr<Message> ConductionConfigHandler::ProcessMessage(const Message &
         device->lastCollectionData.clear();
         elog_v("ConductionConfigHandler",
                "ContinuityCollector and SlotManager configured successfully - "
-               "Pins: %d, "
+               "TestCount: %d, "
                "Start: %d, Total: %d, Interval: %ums",
-               static_cast<int>(device->currentConfig.m_num), static_cast<int>(configMsg->startConductionNum),
-               static_cast<int>(device->currentConfig.m_totalDetectionNum), static_cast<int>(configMsg->interval));
+               static_cast<int>(device->currentConfig.testCount), static_cast<int>(configMsg->startConductionNum),
+               static_cast<int>(configMsg->totalConductionNum), static_cast<int>(configMsg->interval));
         elog_v("ConductionConfigHandler", "Configuration saved for future use. Send Sync message to start "
                                           "collection.");
     }
@@ -240,7 +372,7 @@ std::unique_ptr<Message> SlaveControlHandler::ProcessMessage(const Message &mess
     if (!controlMsg)
         return nullptr;
 
-    elog_i("SlaveControlHandler",
+    elog_v("SlaveControlHandler",
            "Processing slave control message - Mode: %d, Enable: %d, "
            "StartTime: %lu us",
            static_cast<int>(controlMsg->mode), static_cast<int>(controlMsg->enable),
@@ -268,7 +400,7 @@ std::unique_ptr<Message> SlaveControlHandler::ProcessMessage(const Message &mess
             {
                 device->m_isCollecting = true;
                 device->m_deviceState = SlaveDeviceState::RUNNING;
-                elog_i("SlaveControlHandler",
+                elog_v("SlaveControlHandler",
                        "Data collection started immediately (start time "
                        "already reached). "
                        "Current: %lu us, Start: %lu us, Offset: %ld us",
@@ -291,7 +423,7 @@ std::unique_ptr<Message> SlaveControlHandler::ProcessMessage(const Message &mess
             device->m_deviceState = SlaveDeviceState::READY;
 
             uint64_t delayUs = controlMsg->startTime - currentTimeUs;
-            elog_i("SlaveControlHandler",
+            elog_v("SlaveControlHandler",
                    "Data collection scheduled to start in %lu us (at %lu us). "
                    "Current: %lu us, Delay: %lu us",
                    static_cast<unsigned long>(delayUs), static_cast<unsigned long>(controlMsg->startTime),
@@ -321,7 +453,7 @@ std::unique_ptr<Message> SlaveControlHandler::ProcessMessage(const Message &mess
             device->m_isFirstCollection = true;
             device->lastCollectionData.clear();
 
-            elog_i("SlaveControlHandler", "Data collection and slot management stopped successfully");
+            elog_v("SlaveControlHandler", "Data collection and slot management stopped successfully");
         }
 
         // 取消计划的启动

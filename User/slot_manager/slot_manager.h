@@ -64,6 +64,18 @@ class SlotManager
     bool Configure(uint16_t startSlot, uint8_t deviceSlotCount, uint16_t totalSlotCount, uint32_t slotIntervalMs);
 
     /**
+     * 配置时隙管理器（支持单周期模式）
+     * @param startSlot 本设备的起始时隙编号
+     * @param deviceSlotCount 本设备负责的时隙数量
+     * @param totalSlotCount 整个系统的总时隙数
+     * @param slotIntervalMs 时隙间隔（毫秒）
+     * @param singleCycle 是否为单周期模式（完成一个周期后自动停止）
+     * @return 配置是否成功
+     */
+    bool Configure(uint16_t startSlot, uint8_t deviceSlotCount, uint16_t totalSlotCount, uint32_t slotIntervalMs,
+                   bool singleCycle);
+
+    /**
      * 开始时隙调度
      * @return 是否成功启动
      */
@@ -110,6 +122,15 @@ class SlotManager
     }
 
     /**
+     * 获取总时隙数
+     * @return 总时隙数
+     */
+    uint16_t GetTotalSlots() const
+    {
+        return m_TotalSlotCount;
+    }
+
+    /**
      * 获取当前时隙编号
      * @return 当前时隙编号
      */
@@ -144,6 +165,8 @@ class SlotManager
     bool m_IsRunning;           // 是否正在运行
     bool m_IsConfigured;        // 是否已配置
     bool m_IsFirstProcess;      // 是否是第一次process调用
+    bool m_SingleCycleMode;     // 是否为单周期模式
+    bool m_CycleCompleted;      // 是否已完成一个周期
     uint64_t m_LastSlotTimeUs;  // 上次时隙切换时间（微秒）
     uint64_t m_StartTimeUs;     // 时隙调度开始的绝对时间（微秒）
     SlotInfo m_CurrentSlotInfo; // 当前时隙信息

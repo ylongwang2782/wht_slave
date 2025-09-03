@@ -10,8 +10,30 @@
 #include "continuity_collector.h"
 #include "slave_device_state.h"
 #include "slot_manager.h"
+
 namespace SlaveApp
 {
+
+// 采集模式枚举
+enum class CollectionMode : uint8_t
+{
+    CONDUCTION = 0, // 导通检测
+    RESISTANCE = 1, // 阻值检测
+    CLIP = 2        // 卡钉检测
+};
+
+// 从机配置结构体（扩展原有的CollectorConfig）
+struct SlaveDeviceConfig
+{
+    CollectionMode mode; // 采集模式
+    uint8_t interval;    // 采集间隔（ms）
+    uint8_t timeSlot;    // 分配的时隙
+    uint8_t testCount;   // 检测数量
+
+    SlaveDeviceConfig() : mode(CollectionMode::CONDUCTION), interval(100), timeSlot(0), testCount(2)
+    {
+    }
+};
 
 class IMaster2SlaveMessageHandler;
 
@@ -23,11 +45,11 @@ class SlaveDevice
   public:
     // 状态管理
     uint32_t m_deviceId;
-    uint8_t m_shortId;              // 短ID，由主机分配
-    bool m_isJoined;                // 是否已入网
-    bool m_isConfigured;            // 是否已配置
-    CollectorConfig currentConfig;  // 当前配置
-    SlaveDeviceState m_deviceState; // 设备状态
+    uint8_t m_shortId;               // 短ID，由主机分配
+    bool m_isJoined;                 // 是否已入网
+    bool m_isConfigured;             // 是否已配置
+    SlaveDeviceConfig currentConfig; // 当前配置
+    SlaveDeviceState m_deviceState;  // 设备状态
 
     // 时间同步相关
     int64_t m_timeOffset; // 与主机时间的偏移量(us)

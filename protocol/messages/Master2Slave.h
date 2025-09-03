@@ -14,9 +14,20 @@ enum class SlaveRunMode : uint8_t {
     CLIP_TEST = 2           // 卡钉检测
 };
 
+// 从机配置信息结构体
+struct SlaveConfig {
+    uint32_t slaveId;       // 4字节从机ID
+    uint8_t timeSlot;       // 分配的时隙
+    uint8_t testCount;      // 检测数量（导通/阻值/卡钉数量）
+};
+
 class SyncMessage : public Message {
    public:
-    uint64_t timestamp;    // 时间戳（us）
+    uint8_t mode;               // 采集模式：0-导通检测，1-阻值检测，2-卡钉检测
+    uint8_t interval;           // 采集间隔（ms）
+    uint64_t currentTime;       // 当前时间戳（微秒）
+    uint64_t startTime;         // 启动时间戳（微秒）
+    std::vector<SlaveConfig> slaveConfigs;  // 所有从机配置
 
     std::vector<uint8_t> serialize() const override;
     bool deserialize(const std::vector<uint8_t>& data) override;
@@ -26,6 +37,8 @@ class SyncMessage : public Message {
     const char* getMessageTypeName() const override { return "Sync"; }
 };
 
+// DEPRECATED: SetTimeMessage已被新的SyncMessage替代
+// 时间设置功能现在集成在SyncMessage的currentTime字段中
 class SetTimeMessage : public Message {
    public:
     uint64_t timestamp;    // 时间戳（us）
@@ -38,6 +51,8 @@ class SetTimeMessage : public Message {
     const char* getMessageTypeName() const override { return "Set Time"; }
 };
 
+// DEPRECATED: ConductionConfigMessage已被新的SyncMessage替代
+// 导通配置功能现在集成在SyncMessage的slaveConfigs字段中
 class ConductionConfigMessage : public Message {
    public:
     uint8_t timeSlot;
@@ -56,6 +71,8 @@ class ConductionConfigMessage : public Message {
     }
 };
 
+// DEPRECATED: ResistanceConfigMessage已被新的SyncMessage替代
+// 阻值配置功能现在集成在SyncMessage的slaveConfigs字段中
 class ResistanceConfigMessage : public Message {
    public:
     uint8_t timeSlot;
@@ -74,6 +91,8 @@ class ResistanceConfigMessage : public Message {
     }
 };
 
+// DEPRECATED: ClipConfigMessage已被新的SyncMessage替代
+// 卡钉配置功能现在集成在SyncMessage的slaveConfigs字段中
 class ClipConfigMessage : public Message {
    public:
     uint8_t interval;
@@ -128,6 +147,8 @@ class ShortIdAssignMessage : public Message {
     }
 };
 
+// DEPRECATED: SlaveControlMessage已被新的SyncMessage替代
+// 从机控制功能现在集成在SyncMessage的mode和startTime字段中
 class SlaveControlMessage : public Message {
    public:
     SlaveRunMode mode;    // 运行模式
