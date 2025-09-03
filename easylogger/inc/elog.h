@@ -290,7 +290,7 @@ size_t elog_cpyln(char *line, const char *log, size_t len);
 void *elog_memcpy(void *dst, const void *src, size_t count);
 
 /* elog_port.c - Custom timestamp support */
-void elog_set_slave_device(void* device, uint32_t (*timestamp_func)(void*));
+void ElogSetSlaveDevice(void* device, uint32_t (*timestamp_func)(void*));
 
 #ifdef __cplusplus
 }

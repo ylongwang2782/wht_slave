@@ -27,7 +27,7 @@ else()
     "MESSAGE(\"Flash Release......\")"
     CODE "execute_process(COMMAND openocd -f
 ${PROJECT_SOURCE_DIR}/Scripts/OpenOCD/openocd_gdlink.cfg -c \"init; reset
-halt; program ${PROJECT_SOURCE_DIR}/build/Release/wht_slave.elf reset\" -c
+halt; program ${PROJECT_SOURCE_DIR}/build/Release/wht_slave_combined.hex reset\" -c
 shutdown)")
 endif()
 

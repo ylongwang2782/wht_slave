@@ -56,5 +56,5 @@ class CX310_SlaveSpiAdapter : public ICX310 {
 
 // 全局指针，用于在C中断函数中访问CX310_SlaveSpiAdapter实例
 extern "C" {
-    extern CX310_SlaveSpiAdapter* g_uwb_adapter;
+    extern CX310_SlaveSpiAdapter* g_uwbAdapter;
 }

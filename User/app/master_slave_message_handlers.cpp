@@ -10,50 +10,53 @@ namespace SlaveApp
 {
 
 // Sync Message Handler
-std::unique_ptr<Message> SyncMessageHandler::processMessage(const Message &message, SlaveDevice *device)
+std::unique_ptr<Message> SyncMessageHandler::ProcessMessage(const Message &message, SlaveDevice *device)
 {
     auto syncMsg = dynamic_cast<const Master2Slave::SyncMessage *>(&message);
     if (!syncMsg)
         return nullptr;
 
-    elog_v("SyncMessageHandler", "Processing sync message - Timestamp: %lu us", (unsigned long)syncMsg->timestamp);
+    elog_v("SyncMessageHandler", "Processing sync message - Timestamp: %lu us",
+           static_cast<unsigned long>(syncMsg->timestamp));
 
     // 进行时间校准，计算与主机时间的偏移量
     uint64_t localTimestamp = HptimerGetUs();
     int64_t timeOffset = static_cast<int64_t>(syncMsg->timestamp) - static_cast<int64_t>(localTimestamp);
 
     // 存储时间偏移量用于后续采集任务
-    device->timeOffset = timeOffset;
+    device->m_timeOffset = timeOffset;
 
     elog_i("SyncMessageHandler",
            "Local: %lu us, Master: %lu us, "
            "Offset: %lu us",
-           (unsigned long)localTimestamp, (unsigned long)syncMsg->timestamp, (unsigned long)timeOffset);
+           static_cast<unsigned long>(localTimestamp), static_cast<unsigned long>(syncMsg->timestamp),
+           static_cast<unsigned long>(timeOffset));
 
     return nullptr;
 }
 
 // SetTime Message Handler
-std::unique_ptr<Message> SetTimeMessageHandler::processMessage(const Message &message, SlaveDevice *device)
+std::unique_ptr<Message> SetTimeMessageHandler::ProcessMessage(const Message &message, SlaveDevice *device)
 {
     auto setTimeMsg = dynamic_cast<const Master2Slave::SetTimeMessage *>(&message);
     if (!setTimeMsg)
         return nullptr;
 
     elog_v("SetTimeMessageHandler", "Processing set time message - Timestamp: %lu us",
-           (unsigned long)setTimeMsg->timestamp);
+           static_cast<unsigned long>(setTimeMsg->timestamp));
 
     // 进行时间校准，计算与主机时间的偏移量
-    uint64_t localTimestamp = HptimerGetUs();
-    int64_t timeOffset = static_cast<int64_t>(setTimeMsg->timestamp) - static_cast<int64_t>(localTimestamp);
+    const uint64_t localTimestamp = HptimerGetUs();
+    const int64_t timeOffset = static_cast<int64_t>(setTimeMsg->timestamp) - static_cast<int64_t>(localTimestamp);
 
     // 存储时间偏移量用于后续采集任务
-    device->timeOffset = timeOffset;
+    device->m_timeOffset = timeOffset;
 
     elog_v("SetTimeMessageHandler",
            "Time synchronization completed - Local: %lu us, Master: %lu us, "
            "Offset: %ld us",
-           (unsigned long)localTimestamp, (unsigned long)setTimeMsg->timestamp, (long)timeOffset);
+           static_cast<unsigned long>(localTimestamp), static_cast<unsigned long>(setTimeMsg->timestamp),
+           static_cast<long>(timeOffset));
 
     // 创建响应消息
     auto response = std::make_unique<Slave2Master::SetTimeResponseMessage>();
@@ -64,9 +67,9 @@ std::unique_ptr<Message> SetTimeMessageHandler::processMessage(const Message &me
 }
 
 // Conduction Config Message Handler
-std::unique_ptr<Message> ConductionConfigHandler::processMessage(const Message &message, SlaveDevice *device)
+std::unique_ptr<Message> ConductionConfigHandler::ProcessMessage(const Message &message, SlaveDevice *device)
 {
-    auto configMsg = dynamic_cast<const Master2Slave::ConductionConfigMessage *>(&message);
+    const auto configMsg = dynamic_cast<const Master2Slave::ConductionConfigMessage *>(&message);
     if (!configMsg)
         return nullptr;
 
@@ -80,47 +83,47 @@ std::unique_ptr<Message> ConductionConfigHandler::processMessage(const Message &
         );
 
     // 配置采集器和时隙管理器
-    bool collectorConfigured = device->continuityCollector->configure(device->currentConfig);
+    bool collectorConfigured = device->m_continuityCollector->Configure(device->currentConfig);
     bool slotManagerConfigured = false;
 
-    if (collectorConfigured && device->slotManager)
+    if (collectorConfigured && device->m_slotManager)
     {
         // 配置时隙管理器
         slotManagerConfigured =
-            device->slotManager->Configure(static_cast<uint8_t>(configMsg->startConductionNum), // 起始时隙
-                                           static_cast<uint8_t>(configMsg->conductionNum),      // 设备时隙数量
-                                           static_cast<uint8_t>(configMsg->totalConductionNum), // 总时隙数
-                                           static_cast<uint32_t>(configMsg->interval)           // 时隙间隔(ms)
+            device->m_slotManager->Configure(static_cast<uint8_t>(configMsg->startConductionNum), // 起始时隙
+                                             static_cast<uint8_t>(configMsg->conductionNum),      // 设备时隙数量
+                                             static_cast<uint8_t>(configMsg->totalConductionNum), // 总时隙数
+                                             static_cast<uint32_t>(configMsg->interval)           // 时隙间隔(ms)
             );
     }
 
     if (collectorConfigured && slotManagerConfigured)
     {
-        device->isConfigured = true;
-        device->deviceState = SlaveDeviceState::READY;
+        device->m_isConfigured = true;
+        device->m_deviceState = SlaveDeviceState::READY;
 
         // 重置数据发送相关状态
-        device->hasDataToSend = false;
-        device->isFirstCollection = true;
+        device->m_hasDataToSend = false;
+        device->m_isFirstCollection = true;
         device->lastCollectionData.clear();
         elog_v("ConductionConfigHandler",
                "ContinuityCollector and SlotManager configured successfully - "
                "Pins: %d, "
                "Start: %d, Total: %d, Interval: %ums",
-               static_cast<int>(device->currentConfig.num), static_cast<int>(configMsg->startConductionNum),
-               static_cast<int>(device->currentConfig.totalDetectionNum), static_cast<int>(configMsg->interval));
+               static_cast<int>(device->currentConfig.m_num), static_cast<int>(configMsg->startConductionNum),
+               static_cast<int>(device->currentConfig.m_totalDetectionNum), static_cast<int>(configMsg->interval));
         elog_v("ConductionConfigHandler", "Configuration saved for future use. Send Sync message to start "
                                           "collection.");
     }
     else
     {
-        device->isConfigured = false;
-        device->deviceState = SlaveDeviceState::DEV_ERR;
+        device->m_isConfigured = false;
+        device->m_deviceState = SlaveDeviceState::DEV_ERR;
         elog_e("ConductionConfigHandler", "Failed to configure ContinuityCollector or SlotManager");
     }
 
     auto response = std::make_unique<Slave2Master::ConductionConfigResponseMessage>();
-    response->status = device->isConfigured ? 0 : 1; // 0=Success, 1=Error
+    response->status = device->m_isConfigured ? 0 : 1; // 0=Success, 1=Error
     response->timeSlot = configMsg->timeSlot;
     response->interval = configMsg->interval;
     response->totalConductionNum = configMsg->totalConductionNum;
@@ -130,9 +133,9 @@ std::unique_ptr<Message> ConductionConfigHandler::processMessage(const Message &
 }
 
 // Resistance Config Message Handler
-std::unique_ptr<Message> ResistanceConfigHandler::processMessage(const Message &message, SlaveDevice *device)
+std::unique_ptr<Message> ResistanceConfigHandler::ProcessMessage(const Message &message, SlaveDevice *device)
 {
-    auto configMsg = dynamic_cast<const Master2Slave::ResistanceConfigMessage *>(&message);
+    const auto configMsg = dynamic_cast<const Master2Slave::ResistanceConfigMessage *>(&message);
     if (!configMsg)
         return nullptr;
 
@@ -150,9 +153,9 @@ std::unique_ptr<Message> ResistanceConfigHandler::processMessage(const Message &
 }
 
 // Clip Config Message Handler
-std::unique_ptr<Message> ClipConfigHandler::processMessage(const Message &message, SlaveDevice *device)
+std::unique_ptr<Message> ClipConfigHandler::ProcessMessage(const Message &message, SlaveDevice *device)
 {
-    auto configMsg = dynamic_cast<const Master2Slave::ClipConfigMessage *>(&message);
+    const auto configMsg = dynamic_cast<const Master2Slave::ClipConfigMessage *>(&message);
     if (!configMsg)
         return nullptr;
 
@@ -167,13 +170,8 @@ std::unique_ptr<Message> ClipConfigHandler::processMessage(const Message &messag
     return std::move(response);
 }
 
-// Note: ReadConductionDataHandler, ReadResistanceDataHandler, and
-// ReadClipDataHandler have been removed as they conflict with the new
-// push-based data collection architecture. Data is now automatically pushed by
-// slaves via DataCollectionTask instead of being pulled by master.
-
 // Ping Request Message Handler
-std::unique_ptr<Message> PingRequestHandler::processMessage(const Message &message, SlaveDevice *device)
+std::unique_ptr<Message> PingRequestHandler::ProcessMessage(const Message &message, SlaveDevice *device)
 {
     const auto *pingMsg = dynamic_cast<const Master2Slave::PingReqMessage *>(&message);
     if (!pingMsg)
@@ -184,12 +182,12 @@ std::unique_ptr<Message> PingRequestHandler::processMessage(const Message &messa
 
     auto response = std::make_unique<Slave2Master::PingRspMessage>();
     response->sequenceNumber = pingMsg->sequenceNumber;
-    response->timestamp = device->getCurrentTimestamp();
+    response->timestamp = SlaveApp::SlaveDevice::getCurrentTimestamp();
     return std::move(response);
 }
 
 // Reset Message Handler
-std::unique_ptr<Message> ResetMessageHandler::processMessage(const Message &message, SlaveDevice *device)
+std::unique_ptr<Message> ResetMessageHandler::ProcessMessage(const Message &message, SlaveDevice *device)
 {
     const auto *rstMsg = dynamic_cast<const Master2Slave::RstMessage *>(&message);
     if (!rstMsg)
@@ -207,8 +205,8 @@ std::unique_ptr<Message> ResetMessageHandler::processMessage(const Message &mess
     response->clipLed = rstMsg->clipLed;
 
     // 存储待回复的响应并设置标志位
-    device->pendingResetResponse = std::move(response);
-    device->hasPendingResetResponse = true;
+    device->m_pendingResetResponse = std::move(response);
+    device->m_hasPendingResetResponse = true;
 
     elog_v("ResetMessageHandler", "Reset response queued for next active slot");
 
@@ -217,7 +215,7 @@ std::unique_ptr<Message> ResetMessageHandler::processMessage(const Message &mess
 }
 
 // Short ID Assignment Message Handler
-std::unique_ptr<Message> ShortIdAssignHandler::processMessage(const Message &message, SlaveDevice *device)
+std::unique_ptr<Message> ShortIdAssignHandler::ProcessMessage(const Message &message, SlaveDevice *device)
 {
     const auto *assignMsg = dynamic_cast<const Master2Slave::ShortIdAssignMessage *>(&message);
     if (!assignMsg)
@@ -236,7 +234,7 @@ std::unique_ptr<Message> ShortIdAssignHandler::processMessage(const Message &mes
 }
 
 // Slave Control Message Handler
-std::unique_ptr<Message> SlaveControlHandler::processMessage(const Message &message, SlaveDevice *device)
+std::unique_ptr<Message> SlaveControlHandler::ProcessMessage(const Message &message, SlaveDevice *device)
 {
     const auto *controlMsg = dynamic_cast<const Master2Slave::SlaveControlMessage *>(&message);
     if (!controlMsg)
@@ -246,14 +244,14 @@ std::unique_ptr<Message> SlaveControlHandler::processMessage(const Message &mess
            "Processing slave control message - Mode: %d, Enable: %d, "
            "StartTime: %lu us",
            static_cast<int>(controlMsg->mode), static_cast<int>(controlMsg->enable),
-           (unsigned long)controlMsg->startTime);
+           static_cast<unsigned long>(controlMsg->startTime));
 
     auto response = std::make_unique<Slave2Master::SlaveControlResponseMessage>();
 
     if (controlMsg->enable == 1)
     {
         // 启动采集
-        if (!device->isConfigured)
+        if (!device->m_isConfigured)
         {
             elog_w("SlaveControlHandler", "Device not configured, cannot start collection");
             response->status = Slave2Master::ResponseStatusCode::FAILURE;
@@ -261,43 +259,43 @@ std::unique_ptr<Message> SlaveControlHandler::processMessage(const Message &mess
         }
 
         // 获取当前时间
-        uint64_t currentTimeUs = device->getSyncTimestampUs();
 
         // 检查是否已经到达启动时间
-        if (currentTimeUs >= controlMsg->startTime)
+        if (const uint64_t currentTimeUs = device->GetSyncTimestampUs(); currentTimeUs >= controlMsg->startTime)
         {
             // 立即启动采集
-            if (device->continuityCollector->startCollection())
+            if (device->m_continuityCollector->StartCollection())
             {
-                device->isCollecting = true;
-                device->deviceState = SlaveDeviceState::RUNNING;
+                device->m_isCollecting = true;
+                device->m_deviceState = SlaveDeviceState::RUNNING;
                 elog_i("SlaveControlHandler",
                        "Data collection started immediately (start time "
                        "already reached). "
                        "Current: %lu us, Start: %lu us, Offset: %ld us",
-                       (unsigned long)currentTimeUs, (unsigned long)controlMsg->startTime, (long)device->timeOffset);
+                       static_cast<unsigned long>(currentTimeUs), static_cast<unsigned long>(controlMsg->startTime),
+                       static_cast<long>(device->m_timeOffset));
                 response->status = Slave2Master::ResponseStatusCode::SUCCESS;
             }
             else
             {
                 elog_e("SlaveControlHandler", "Failed to start data collection");
-                device->deviceState = SlaveDeviceState::DEV_ERR;
+                device->m_deviceState = SlaveDeviceState::DEV_ERR;
                 response->status = Slave2Master::ResponseStatusCode::FAILURE;
             }
         }
         else
         {
             // 延迟启动：保存启动时间，等待到达时间
-            device->scheduledStartTime = controlMsg->startTime;
-            device->isScheduledToStart = true;
-            device->deviceState = SlaveDeviceState::READY;
+            device->m_scheduledStartTime = controlMsg->startTime;
+            device->m_isScheduledToStart = true;
+            device->m_deviceState = SlaveDeviceState::READY;
 
             uint64_t delayUs = controlMsg->startTime - currentTimeUs;
             elog_i("SlaveControlHandler",
                    "Data collection scheduled to start in %lu us (at %lu us). "
                    "Current: %lu us, Delay: %lu us",
-                   (unsigned long)delayUs, (unsigned long)controlMsg->startTime, (unsigned long)currentTimeUs,
-                   (unsigned long)delayUs);
+                   static_cast<unsigned long>(delayUs), static_cast<unsigned long>(controlMsg->startTime),
+                   static_cast<unsigned long>(currentTimeUs), static_cast<unsigned long>(delayUs));
 
             response->status = Slave2Master::ResponseStatusCode::SUCCESS;
         }
@@ -305,30 +303,30 @@ std::unique_ptr<Message> SlaveControlHandler::processMessage(const Message &mess
     else
     {
         // 停止采集
-        if (device->isCollecting)
+        if (device->m_isCollecting)
         {
-            if (device->continuityCollector)
+            if (device->m_continuityCollector)
             {
-                device->continuityCollector->stopCollection();
+                device->m_continuityCollector->StopCollection();
             }
-            if (device->slotManager)
+            if (device->m_slotManager)
             {
-                device->slotManager->Stop();
+                device->m_slotManager->Stop();
             }
-            device->isCollecting = false;
-            device->deviceState = SlaveDeviceState::READY;
+            device->m_isCollecting = false;
+            device->m_deviceState = SlaveDeviceState::READY;
 
             // 重置数据发送相关状态
-            device->hasDataToSend = false;
-            device->isFirstCollection = true;
+            device->m_hasDataToSend = false;
+            device->m_isFirstCollection = true;
             device->lastCollectionData.clear();
 
             elog_i("SlaveControlHandler", "Data collection and slot management stopped successfully");
         }
 
         // 取消计划的启动
-        device->isScheduledToStart = false;
-        device->scheduledStartTime = 0;
+        device->m_isScheduledToStart = false;
+        device->m_scheduledStartTime = 0;
 
         response->status = Slave2Master::ResponseStatusCode::SUCCESS;
 
@@ -339,8 +337,8 @@ std::unique_ptr<Message> SlaveControlHandler::processMessage(const Message &mess
     }
 
     // 对于启动消息，存储待回复的响应并设置标志位，避免与数据传输冲撞
-    device->pendingSlaveControlResponse = std::move(response);
-    device->hasPendingSlaveControlResponse = true;
+    device->m_pendingSlaveControlResponse = std::move(response);
+    device->m_hasPendingSlaveControlResponse = true;
 
     elog_v("SlaveControlHandler", "SlaveControl response queued for next active slot");
 

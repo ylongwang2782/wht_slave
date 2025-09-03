@@ -32,22 +32,21 @@ uint64_t HptimerGetUs64(void)
     return (uint64_t)tick_count * 1000ULL + (us_counter % 1000);
 }
 
-uint32_t HptimerElapsedUs(uint32_t ref_time)
+uint32_t HptimerElapsedUs(const uint32_t refTime)
 {
-    uint32_t now = HptimerGetUs();
-    if (now >= ref_time)
+    if (const uint32_t now = HptimerGetUs(); now >= refTime)
     {
-        return now - ref_time;
+        return now - refTime;
     }
     else
     {
-        return (0xFFFFFFFF - ref_time) + now + 1;
+        return (0xFFFFFFFF - refTime) + now + 1;
     }
 }
 
-bool HptimerIsTimeoutUs(uint32_t ref_time, uint32_t timeout_us)
+bool HptimerIsTimeoutUs(uint32_t refTime, uint32_t timeoutUs)
 {
-    return HptimerElapsedUs(ref_time) >= timeout_us;
+    return HptimerElapsedUs(refTime) >= timeoutUs;
 }
 
 void HptimerDelayUs(uint32_t us)

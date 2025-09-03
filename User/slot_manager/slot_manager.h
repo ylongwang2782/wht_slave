@@ -17,13 +17,13 @@ enum class SlotType : uint8_t
  */
 struct SlotInfo
 {
-    uint16_t currentSlot;    // 当前时隙编号
-    uint16_t totalSlots;     // 总时隙数
-    SlotType slotType;       // 当前时隙类型
-    uint8_t activePin;       // 如果是激活时隙，对应的引脚编号（逻辑引脚）
-    uint32_t slotIntervalMs; // 时隙间隔（毫秒）
+    uint16_t m_currentSlot;    // 当前时隙编号
+    uint16_t m_totalSlots;     // 总时隙数
+    SlotType m_slotType;       // 当前时隙类型
+    uint8_t m_activePin;       // 如果是激活时隙，对应的引脚编号（逻辑引脚）
+    uint32_t m_slotIntervalMs; // 时隙间隔（毫秒）
 
-    SlotInfo() : currentSlot(0), totalSlots(0), slotType(SlotType::INACTIVE), activePin(0), slotIntervalMs(0)
+    SlotInfo() : m_currentSlot(0), m_totalSlots(0), m_slotType(SlotType::INACTIVE), m_activePin(0), m_slotIntervalMs(0)
     {
     }
 };
@@ -115,7 +115,7 @@ class SlotManager
      */
     uint16_t GetCurrentSlot() const
     {
-        return m_CurrentSlotInfo.currentSlot;
+        return m_CurrentSlotInfo.m_currentSlot;
     }
 
     /**
@@ -124,7 +124,7 @@ class SlotManager
      */
     bool IsCurrentSlotActive() const
     {
-        return m_CurrentSlotInfo.slotType == SlotType::ACTIVE;
+        return m_CurrentSlotInfo.m_slotType == SlotType::ACTIVE;
     }
 
     /**

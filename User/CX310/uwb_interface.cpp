@@ -5,14 +5,14 @@
 #include "stm32f4xx_hal_gpio.h"
 
 // 全局指针定义
-CX310_SlaveSpiAdapter *g_uwb_adapter = nullptr;
+CX310_SlaveSpiAdapter *g_uwbAdapter = nullptr;
 
 // C风格包装函数，用于在C中断中调用C++成员函数
 extern "C" void uwb_int_handler_wrapper(void)
 {
-    if (g_uwb_adapter != nullptr)
+    if (g_uwbAdapter != nullptr)
     {
-        g_uwb_adapter->int_pin_irq_handler();
+        g_uwbAdapter->int_pin_irq_handler();
     }
 }
 

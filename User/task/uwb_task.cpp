@@ -11,7 +11,7 @@
 #include "uwb_interface.hpp"
 
 // 外部声明全局指针
-extern CX310_SlaveSpiAdapter *g_uwb_adapter;
+extern CX310_SlaveSpiAdapter *g_uwbAdapter;
 
 #endif
 
@@ -26,26 +26,25 @@ typedef enum
     UWB_MSG_TYPE_SEND_DATA = 1, // 应用任务发送数据
     UWB_MSG_TYPE_CONFIG,        // 配置信息
     UWB_MSG_TYPE_SET_MODE       // 设置工作模式
-} uwb_msg_type_t;
+} UwbMsgType;
 
 // UWB发送消息结构体
 typedef struct
 {
-    uwb_msg_type_t type;
+    UwbMsgType type;
     uint16_t data_len;
     uint8_t data[FRAME_LEN_MAX];
     uint32_t delay_ms; // 发送延迟时间
-} uwb_tx_msg_t;
+} UwbTxMsg;
 
-// 全局变量
-static osMessageQueueId_t uwb_txQueue; // UWB发送队列
-static osMessageQueueId_t uwb_rxQueue; // UWB接收队列
+static osMessageQueueId_t uwbTxQueue; // UWB发送队列
+static osMessageQueueId_t uwbRxQueue; // UWB接收队列
 static osThreadId_t uwbCommTaskHandle;
-static osSemaphoreId_t uwb_txSemaphore; // UWB发送信号量
+static osSemaphoreId_t uwbTxSemaphore; // UWB发送信号量
 
 // 接收数据回调函数指针
-typedef void (*uwb_rx_callback_t)(const uwb_rx_msg_t *msg);
-static uwb_rx_callback_t uwb_rx_callback = NULL;
+typedef void (*UwbRxCallback)(const uwbRxMsg *msg);
+static UwbRxCallback uwbRxCallback = nullptr;
 
 #if UWB_CHIP_TYPE_DW1000
 static uint8_t rx_buffer[FRAME_LEN_MAX];
@@ -199,13 +198,13 @@ static void uwb_comm_task(void *argument)
 
 static void uwb_comm_task(void *argument)
 {
-    static const char *TAG = "uwb_comm";
-    uwb_tx_msg_t tx_msg;
-    uwb_rx_msg_t rx_msg;
+    static auto TAG = "uwb_comm";
+    UwbTxMsg txMsg;
+    uwbRxMsg rxMsg;
 
     CX310<CX310_SlaveSpiAdapter> uwb;
-    // 设置全局指针，用于中断处理
-    g_uwb_adapter = &uwb.get_interface();
+    // 设置全局指针，用于中断处理 
+    g_uwbAdapter = &uwb.get_interface();
 
     std::vector<uint8_t> buffer = {0};
 
@@ -219,34 +218,28 @@ static void uwb_comm_task(void *argument)
     for (;;)
     {
         // 等待发送信号量，确保队列中有完整的数据
-        if (osSemaphoreAcquire(uwb_txSemaphore, 0) == osOK)
+        if (osSemaphoreAcquire(uwbTxSemaphore, 0) == osOK)
         {
             // 从队列获取发送消息
-            if (osMessageQueueGet(uwb_txQueue, &tx_msg, NULL, 0) == osOK)
+            if (osMessageQueueGet(uwbTxQueue, &txMsg, nullptr, 0) == osOK)
             {
-                // 发送UWB数据
-                std::vector<uint8_t> tx_data(tx_msg.data, tx_msg.data + tx_msg.data_len);
+                std::vector<uint8_t> tx_data(txMsg.data, txMsg.data + txMsg.data_len);
                 elog_i(TAG, "tx begin");
                 uwb.update();
                 uwb.data_transmit(tx_data);
-                // 发送完成后重新启动接收
-                // uwb.set_recv_mode();
             }
         }
 
         if (uwb.get_recv_data(buffer))
         {
-            // uwb.set_recv_mode();
-            // elog_w(TAG, "rx size: %d", buffer.size());
-            rx_msg.data_len = buffer.size();
-            for (int i = 0; i < rx_msg.data_len; i++)
+            rxMsg.data_len = buffer.size();
+            for (int i = 0; i < rxMsg.data_len; i++)
             {
-                rx_msg.data[i] = buffer[i];
+                rxMsg.data[i] = buffer[i];
             }
-            rx_msg.timestamp = osKernelGetTickCount();
-            rx_msg.status_reg = 0;
-            osMessageQueuePut(uwb_rxQueue, &rx_msg, 0, 0);
-            // osDelay(UWB_TX_DELAY_MS);
+            rxMsg.timestamp = osKernelGetTickCount();
+            rxMsg.status_reg = 0;
+            osMessageQueuePut(uwbRxQueue, &rxMsg, 0, 0);
         }
 
         uwb.update();
@@ -256,41 +249,41 @@ static void uwb_comm_task(void *argument)
 #endif
 
 // 初始化UWB通信任务
-void UWB_Task_Init(void)
+void UwbTaskInit(void)
 {
     static const char *TAG = "uwb_init";
 
     // 创建消息队列
-    uwb_txQueue = osMessageQueueNew(TX_QUEUE_SIZE, sizeof(uwb_tx_msg_t), NULL);
-    if (uwb_txQueue == NULL)
+    uwbTxQueue = osMessageQueueNew(TX_QUEUE_SIZE, sizeof(UwbTxMsg), nullptr);
+    if (uwbTxQueue == nullptr)
     {
         elog_e(TAG, "Failed to create UWB TX queue");
         return;
     }
 
-    uwb_rxQueue = osMessageQueueNew(RX_QUEUE_SIZE, sizeof(uwb_rx_msg_t), NULL);
-    if (uwb_rxQueue == NULL)
+    uwbRxQueue = osMessageQueueNew(RX_QUEUE_SIZE, sizeof(uwbRxMsg), nullptr);
+    if (uwbRxQueue == nullptr)
     {
         elog_e(TAG, "Failed to create UWB RX queue");
         return;
     }
 
     // 创建发送信号量（计数信号量，初始值为0）
-    uwb_txSemaphore = osSemaphoreNew(TX_QUEUE_SIZE, 0, NULL);
-    if (uwb_txSemaphore == NULL)
+    uwbTxSemaphore = osSemaphoreNew(TX_QUEUE_SIZE, 0, nullptr);
+    if (uwbTxSemaphore == nullptr)
     {
         elog_e(TAG, "Failed to create UWB TX semaphore");
         return;
     }
     // 创建UWB通信任务
-    const osThreadAttr_t uwbTask_attributes = {
+    constexpr osThreadAttr_t uwbTaskAttributes = {
         .name = "uwbCommTask",
         .stack_size = 512 * 16,
         .priority = (osPriority_t)osPriorityNormal,
     };
-    uwbCommTaskHandle = osThreadNew(uwb_comm_task, NULL, &uwbTask_attributes);
+    uwbCommTaskHandle = osThreadNew(uwb_comm_task, nullptr, &uwbTaskAttributes);
 
-    if (uwbCommTaskHandle == NULL)
+    if (uwbCommTaskHandle == nullptr)
     {
         elog_e(TAG, "Failed to create UWB communication task");
     }
@@ -301,17 +294,17 @@ void UWB_Task_Init(void)
 }
 
 // API函数：发送UWB数据
-int UWB_SendData(const uint8_t *data, uint16_t len, uint32_t delay_ms)
+int UwbSendData(const uint8_t *data, const uint16_t len, const uint32_t delayMs)
 {
-    if (data == NULL || len == 0 || len > FRAME_LEN_MAX)
+    if (data == nullptr || len == 0 || len > FRAME_LEN_MAX)
     {
         return -1;
     }
 
-    uwb_tx_msg_t msg;
+    UwbTxMsg msg;
     msg.type = UWB_MSG_TYPE_SEND_DATA;
     msg.data_len = len;
-    msg.delay_ms = delay_ms;
+    msg.delay_ms = delayMs;
 
     // 复制数据到消息结构体
     for (uint16_t i = 0; i < len; i++)
@@ -320,26 +313,26 @@ int UWB_SendData(const uint8_t *data, uint16_t len, uint32_t delay_ms)
     }
 
     // 发送到队列
-    if (osMessageQueuePut(uwb_txQueue, &msg, 0, 100) != osOK)
+    if (osMessageQueuePut(uwbTxQueue, &msg, 0, 100) != osOK)
     {
         return -3; // 队列满或超时
     }
 
     // 队列数据放入成功后，释放信号量通知通信任务
-    osSemaphoreRelease(uwb_txSemaphore);
+    osSemaphoreRelease(uwbTxSemaphore);
 
     return 0; // 成功
 }
 
 // API函数：接收UWB数据（非阻塞）
-int UWB_ReceiveData(uwb_rx_msg_t *msg, uint32_t timeout_ms)
+int UwbReceiveData(uwbRxMsg *msg, const uint32_t timeoutMs)
 {
-    if (msg == NULL)
+    if (msg == nullptr)
     {
         return -1;
     }
 
-    if (osMessageQueueGet(uwb_rxQueue, msg, NULL, timeout_ms) == osOK)
+    if (osMessageQueueGet(uwbRxQueue, msg, nullptr, timeoutMs) == osOK)
     {
         return 0; // 成功
     }
@@ -348,55 +341,55 @@ int UWB_ReceiveData(uwb_rx_msg_t *msg, uint32_t timeout_ms)
 }
 
 // API函数：设置接收回调函数
-void UWB_SetRxCallback(uwb_rx_callback_t callback)
+void UwbSetRxCallback(UwbRxCallback callback)
 {
-    uwb_rx_callback = callback;
+    uwbRxCallback = callback;
 }
 
 // API函数：获取队列状态
-int UWB_GetTxQueueCount(void)
+int UwbGetTxQueueCount(void)
 {
-    return (int)osMessageQueueGetCount(uwb_txQueue);
+    return (int)osMessageQueueGetCount(uwbTxQueue);
 }
 
-int UWB_GetRxQueueCount(void)
+int UwbGetRxQueueCount(void)
 {
-    return (int)osMessageQueueGetCount(uwb_rxQueue);
+    return (int)osMessageQueueGetCount(uwbRxQueue);
 }
 
 // API函数：清空队列
-void UWB_ClearTxQueue(void)
+void UwbClearTxQueue(void)
 {
-    uwb_tx_msg_t msg;
-    while (osMessageQueueGet(uwb_txQueue, &msg, NULL, 0) == osOK)
+    UwbTxMsg msg;
+    while (osMessageQueueGet(uwbTxQueue, &msg, nullptr, 0) == osOK)
     {
         // 清空队列
     }
 }
 
-void UWB_ClearRxQueue(void)
+void UwbClearRxQueue(void)
 {
-    uwb_rx_msg_t msg;
-    while (osMessageQueueGet(uwb_rxQueue, &msg, NULL, 0) == osOK)
+    uwbRxMsg msg;
+    while (osMessageQueueGet(uwbRxQueue, &msg, nullptr, 0) == osOK)
     {
         // 清空队列
     }
 }
 
 // API函数：重新配置UWB
-int UWB_Reconfigure(void)
+int UwbReconfigure(void)
 {
-    uwb_tx_msg_t msg;
+    UwbTxMsg msg;
     msg.type = UWB_MSG_TYPE_CONFIG;
     msg.data_len = 0;
 
-    if (osMessageQueuePut(uwb_txQueue, &msg, 0, 100) != osOK)
+    if (osMessageQueuePut(uwbTxQueue, &msg, 0, 100) != osOK)
     {
         return -1; // 队列满或超时
     }
 
     // 配置消息放入队列后，释放信号量通知通信任务
-    osSemaphoreRelease(uwb_txSemaphore);
+    osSemaphoreRelease(uwbTxSemaphore);
 
     return 0; // 成功
 }

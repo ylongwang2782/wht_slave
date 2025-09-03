@@ -18,13 +18,13 @@ class LockController
 
     void Update();
     void Reset(); // 复位函数：解锁并关闭阀门
-    LockState GetState() const;
-    const char *GetName() const;
+    [[nodiscard]] LockState GetState() const;
+    [[nodiscard]] const char *GetName() const;
 
   private:
-    const char *m_Name;
-    HalButton &m_KeyButton;    // 钥匙按钮传感器
-    HalButton &m_UnlockButton; // 解锁按钮
-    HalValve &m_LockValve;     // 锁控制阀门
-    LockState m_State;
+    const char *m_name;
+    HalButton &m_keyButton;    // 钥匙按钮传感器
+    HalButton &m_unlockButton; // 解锁按钮
+    HalValve &m_lockValve;     // 锁控制阀门
+    LockState m_state;
 };

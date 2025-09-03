@@ -8,7 +8,7 @@ HalButton::HalButton(const char *name, GPIO_TypeDef *port, uint16_t pin)
 
 void HalButton::Update()
 {
-    bool current = IsPressed();
+    const bool current = IsPressed();
     m_PressedEdge = (!m_LastState && current);
     m_LastState = current;
 }
@@ -79,14 +79,14 @@ const char *HalValve::GetName() const
 
 // HalDipSwitch实现
 HalDipSwitch::HalDipSwitch(const DipSwitchInfo &info)
-    : m_Keys{HalButton("DIP0", info.Pins[0].Port, info.Pins[0].Pin),
-             HalButton("DIP1", info.Pins[1].Port, info.Pins[1].Pin),
-             HalButton("DIP2", info.Pins[2].Port, info.Pins[2].Pin),
-             HalButton("DIP3", info.Pins[3].Port, info.Pins[3].Pin),
-             HalButton("DIP4", info.Pins[4].Port, info.Pins[4].Pin),
-             HalButton("DIP5", info.Pins[5].Port, info.Pins[5].Pin),
-             HalButton("DIP6", info.Pins[6].Port, info.Pins[6].Pin),
-             HalButton("DIP7", info.Pins[7].Port, info.Pins[7].Pin)}
+    : m_keys{HalButton("DIP0", info.pinInfo[0].m_port, info.pinInfo[0].m_pin),
+             HalButton("DIP1", info.pinInfo[1].m_port, info.pinInfo[1].m_pin),
+             HalButton("DIP2", info.pinInfo[2].m_port, info.pinInfo[2].m_pin),
+             HalButton("DIP3", info.pinInfo[3].m_port, info.pinInfo[3].m_pin),
+             HalButton("DIP4", info.pinInfo[4].m_port, info.pinInfo[4].m_pin),
+             HalButton("DIP5", info.pinInfo[5].m_port, info.pinInfo[5].m_pin),
+             HalButton("DIP6", info.pinInfo[6].m_port, info.pinInfo[6].m_pin),
+             HalButton("DIP7", info.pinInfo[7].m_port, info.pinInfo[7].m_pin)}
 {
 }
 
@@ -94,7 +94,7 @@ bool HalDipSwitch::IsOn(int index) const
 {
     if (index < 0 || index >= 8)
         return false;
-    return m_Keys[index].IsPressed();
+    return m_keys[index].IsPressed();
 }
 
 uint8_t HalDipSwitch::Value() const

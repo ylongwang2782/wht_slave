@@ -43,8 +43,8 @@ bool SlotManager::Configure(uint16_t startSlot, uint8_t deviceSlotCount, uint16_
     m_IsConfigured = true;
 
     // 初始化时隙信息
-    m_CurrentSlotInfo.totalSlots = m_TotalSlotCount;
-    m_CurrentSlotInfo.slotIntervalMs = m_SlotIntervalMs;
+    m_CurrentSlotInfo.m_totalSlots = m_TotalSlotCount;
+    m_CurrentSlotInfo.m_slotIntervalMs = m_SlotIntervalMs;
 
     elog_i("SlotManager", "Configured - Start: %d, Count: %d, Total: %d, Interval: %dms", startSlot, deviceSlotCount,
            totalSlotCount, slotIntervalMs);
@@ -74,20 +74,20 @@ bool SlotManager::Start()
     m_LastSlotTimeUs = m_StartTimeUs;
 
     // 设置初始时隙为0，但不立即触发回调
-    m_CurrentSlotInfo.currentSlot = 0;
-    m_CurrentSlotInfo.slotType = CalculateSlotType(0);
-    m_CurrentSlotInfo.totalSlots = m_TotalSlotCount;
-    m_CurrentSlotInfo.slotIntervalMs = m_SlotIntervalMs;
+    m_CurrentSlotInfo.m_currentSlot = 0;
+    m_CurrentSlotInfo.m_slotType = CalculateSlotType(0);
+    m_CurrentSlotInfo.m_totalSlots = m_TotalSlotCount;
+    m_CurrentSlotInfo.m_slotIntervalMs = m_SlotIntervalMs;
 
-    if (m_CurrentSlotInfo.slotType == SlotType::ACTIVE)
+    if (m_CurrentSlotInfo.m_slotType == SlotType::ACTIVE)
     {
         // 计算激活的引脚编号（逻辑引脚）
-        m_CurrentSlotInfo.activePin = 0 - m_StartSlot;
-        elog_v("SlotManager", "Initial ACTIVE slot 0, pin %d", m_CurrentSlotInfo.activePin);
+        m_CurrentSlotInfo.m_activePin = 0 - m_StartSlot;
+        elog_v("SlotManager", "Initial ACTIVE slot 0, pin %d", m_CurrentSlotInfo.m_activePin);
     }
     else
     {
-        m_CurrentSlotInfo.activePin = 0xFF; // 无效引脚
+        m_CurrentSlotInfo.m_activePin = 0xFF; // 无效引脚
         elog_v("SlotManager", "Initial INACTIVE slot 0");
     }
 
@@ -134,7 +134,7 @@ void SlotManager::Process()
     uint16_t expectedSlot = (elapsedFromStartUs / slotIntervalUs) % m_TotalSlotCount;
 
     // 检查是否需要切换到新的时隙
-    if (expectedSlot != m_CurrentSlotInfo.currentSlot)
+    if (expectedSlot != m_CurrentSlotInfo.m_currentSlot)
     {
         // 可能跳过了多个时隙，直接切换到正确的时隙
         SwitchToSlot(expectedSlot);
@@ -160,9 +160,9 @@ void SlotManager::SetSyncTimeCallback(SyncTimeCallback callback)
 
 uint8_t SlotManager::GetCurrentActivePin() const
 {
-    if (m_CurrentSlotInfo.slotType == SlotType::ACTIVE)
+    if (m_CurrentSlotInfo.m_slotType == SlotType::ACTIVE)
     {
-        return m_CurrentSlotInfo.activePin;
+        return m_CurrentSlotInfo.m_activePin;
     }
     return 0xFF; // 无效引脚号
 }
@@ -189,19 +189,19 @@ SlotType SlotManager::CalculateSlotType(uint16_t slotNumber)
 
 void SlotManager::SwitchToSlot(uint16_t newSlot)
 {
-    m_CurrentSlotInfo.currentSlot = newSlot;
-    m_CurrentSlotInfo.slotType = CalculateSlotType(newSlot);
+    m_CurrentSlotInfo.m_currentSlot = newSlot;
+    m_CurrentSlotInfo.m_slotType = CalculateSlotType(newSlot);
 
-    if (m_CurrentSlotInfo.slotType == SlotType::ACTIVE)
+    if (m_CurrentSlotInfo.m_slotType == SlotType::ACTIVE)
     {
         // 计算激活的引脚编号（逻辑引脚）
-        m_CurrentSlotInfo.activePin = newSlot - m_StartSlot;
+        m_CurrentSlotInfo.m_activePin = newSlot - m_StartSlot;
         // 只在调试模式下输出详细日志，减少日志量
-        elog_v("SlotManager", "Switched to ACTIVE slot %d, pin %d", newSlot, m_CurrentSlotInfo.activePin);
+        elog_v("SlotManager", "Switched to ACTIVE slot %d, pin %d", newSlot, m_CurrentSlotInfo.m_activePin);
     }
     else
     {
-        m_CurrentSlotInfo.activePin = 0xFF; // 无效引脚
+        m_CurrentSlotInfo.m_activePin = 0xFF; // 无效引脚
         // 只在调试模式下输出详细日志，减少日志量
         elog_v("SlotManager", "Switched to INACTIVE slot %d", newSlot);
     }

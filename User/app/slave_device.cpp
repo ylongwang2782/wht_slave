@@ -1,7 +1,6 @@
 
 #include "slave_device.h"
 
-#include <cstdint>
 #include <cstdio>
 
 #include "adc.h"
@@ -24,84 +23,83 @@ namespace SlaveApp
 {
 
 SlaveDevice::SlaveDevice()
-    : deviceId(DeviceUID::get()),                                              // 自动读取设备UID
-      shortId(0),                                                              // 初始短ID为0，表示未分配
-      isJoined(false),                                                         // 初始未入网
-      isConfigured(false), deviceState(SlaveDeviceState::IDLE), timeOffset(0), // 初始时间偏移量为0
-      isCollecting(false),                                                     // 初始未在采集
-      scheduledStartTime(0),                                                   // 初始计划启动时间为0
-      isScheduledToStart(false),                                               // 初始未计划启动
-      hasDataToSend(false),                                                    // 初始无数据待发送
-      isFirstCollection(true),                                                 // 初始为第一次采集
-      hasPendingSlaveControlResponse(false),                                   // 初始无待回复的SlaveControl消息
-      hasPendingResetResponse(false),                                          // 初始无待回复的Reset消息
-      pendingSlaveControlResponse(nullptr),                                    // 初始化待回复的SlaveControl响应为空
-      pendingResetResponse(nullptr),                                           // 初始化待回复的Reset响应为空
-      deviceStatus({})
-{ // 初始化设备状态
+    : m_deviceId(DeviceUID::get()),                                                  // 自动读取设备UID
+      m_shortId(0),                                                                  // 初始短ID为0，表示未分配
+      m_isJoined(false),                                                             // 初始未入网
+      m_isConfigured(false), m_deviceState(SlaveDeviceState::IDLE), m_timeOffset(0), // 初始时间偏移量为0
+      m_isCollecting(false),                                                         // 初始未在采集
+      m_scheduledStartTime(0),                                                       // 初始计划启动时间为0
+      m_isScheduledToStart(false),                                                   // 初始未计划启动
+      m_hasDataToSend(false),                                                        // 初始无数据待发送
+      m_isFirstCollection(true),                                                     // 初始为第一次采集
+      m_hasPendingSlaveControlResponse(false),                                       // 初始无待回复的SlaveControl消息
+      m_hasPendingResetResponse(false),                                              // 初始无待回复的Reset消息
+      m_pendingSlaveControlResponse(nullptr), // 初始化待回复的SlaveControl响应为空
+      m_pendingResetResponse(nullptr),        // 初始化待回复的Reset响应为空
+      m_deviceStatus({})
+{
 
     // Initialize continuity collector
-    continuityCollector = ContinuityCollectorFactory::create();
+    m_continuityCollector = ContinuityCollectorFactory::Create();
 
     // Initialize slot manager
-    slotManager = std::make_unique<SlotManager>();
+    m_slotManager = std::make_unique<SlotManager>();
 
     // 设置时隙管理器的同步时间回调
-    if (slotManager)
+    if (m_slotManager)
     {
-        slotManager->SetSyncTimeCallback([this]() { return this->getSyncTimestampUs(); });
+        m_slotManager->SetSyncTimeCallback([this]() { return this->GetSyncTimestampUs(); });
 
         // 设置时隙切换回调
-        slotManager->SetSlotCallback([this](const SlotInfo &slotInfo) { this->onSlotChanged(slotInfo); });
+        m_slotManager->SetSlotCallback([this](const SlotInfo &slotInfo) { this->OnSlotChanged(slotInfo); });
     }
 
     // set MTU = 1016
-    processor.setMTU(800);
+    m_processor.SetMTU(800);
 
     // Initialize message handlers
-    initializeMessageHandlers();
+    InitializeMessageHandlers();
 
-    dataCollectionTask = std::make_unique<DataCollectionTask>(*this);
-    announceTask = std::make_unique<AnnounceTask>(*this);
-    joinTask = std::make_unique<JoinTask>(*this);
-    slaveDataProcT = std::make_unique<SlaveDataProcT>(*this);
-    accessoryTask = std::make_unique<AccessoryTask>(*this);
+    m_dataCollectionTask = std::make_unique<DataCollectionTask>(*this);
+    m_announceTask = std::make_unique<AnnounceTask>(*this);
+    m_joinTask = std::make_unique<JoinTask>(*this);
+    m_slaveDataProcT = std::make_unique<SlaveDataProcT>(*this);
+    m_accessoryTask = std::make_unique<AccessoryTask>(*this);
 }
 
-void SlaveDevice::initializeMessageHandlers()
+void SlaveDevice::InitializeMessageHandlers()
 {
     messageHandlers_[static_cast<uint8_t>(WhtsProtocol::Master2SlaveMessageId::SYNC_MSG)] =
-        &SyncMessageHandler::getInstance();
+        &SyncMessageHandler::GetInstance();
     messageHandlers_[static_cast<uint8_t>(WhtsProtocol::Master2SlaveMessageId::SET_TIME_MSG)] =
-        &SetTimeMessageHandler::getInstance();
+        &SetTimeMessageHandler::GetInstance();
     messageHandlers_[static_cast<uint8_t>(WhtsProtocol::Master2SlaveMessageId::CONDUCTION_CFG_MSG)] =
-        &ConductionConfigHandler::getInstance();
+        &ConductionConfigHandler::GetInstance();
     messageHandlers_[static_cast<uint8_t>(WhtsProtocol::Master2SlaveMessageId::RESISTANCE_CFG_MSG)] =
-        &ResistanceConfigHandler::getInstance();
+        &ResistanceConfigHandler::GetInstance();
     messageHandlers_[static_cast<uint8_t>(WhtsProtocol::Master2SlaveMessageId::CLIP_CFG_MSG)] =
-        &ClipConfigHandler::getInstance();
+        &ClipConfigHandler::GetInstance();
     messageHandlers_[static_cast<uint8_t>(WhtsProtocol::Master2SlaveMessageId::PING_REQ_MSG)] =
-        &PingRequestHandler::getInstance();
+        &PingRequestHandler::GetInstance();
     messageHandlers_[static_cast<uint8_t>(WhtsProtocol::Master2SlaveMessageId::RST_MSG)] =
-        &ResetMessageHandler::getInstance();
+        &ResetMessageHandler::GetInstance();
     messageHandlers_[static_cast<uint8_t>(WhtsProtocol::Master2SlaveMessageId::SHORT_ID_ASSIGN_MSG)] =
-        &ShortIdAssignHandler::getInstance();
+        &ShortIdAssignHandler::GetInstance();
     messageHandlers_[static_cast<uint8_t>(WhtsProtocol::Master2SlaveMessageId::SLAVE_CONTROL_MSG)] =
-        &SlaveControlHandler::getInstance();
+        &SlaveControlHandler::GetInstance();
 }
 
 std::unique_ptr<Message> SlaveDevice::processMaster2SlaveMessage(const Message &message)
 {
     elog_v("SlaveDevice", "Processing Master2Slave message: %s", message.getMessageTypeName());
 
-    uint8_t messageId = message.getMessageId();
+    const uint8_t messageId = message.getMessageId();
     elog_v("SlaveDevice", "Processing Master2Slave message, ID: 0x%02X", static_cast<int>(messageId));
 
-    IMaster2SlaveMessageHandler *handler = messageHandlers_[messageId];
-    if (handler)
+    if (IMaster2SlaveMessageHandler *handler = messageHandlers_[messageId])
     {
         // Process message using the appropriate handler
-        auto response = handler->processMessage(message, this);
+        auto response = handler->ProcessMessage(message, this);
 
         if (response)
         {
@@ -123,40 +121,40 @@ std::unique_ptr<Message> SlaveDevice::processMaster2SlaveMessage(const Message &
 
 uint32_t SlaveDevice::getCurrentTimestamp()
 {
-    uint32_t tick = HptimerGetUs();
+    const uint32_t tick = HptimerGetUs();
     return tick;
 }
 
-uint64_t SlaveDevice::getSyncTimestampUs()
+uint64_t SlaveDevice::GetSyncTimestampUs() const
 {
     // 获取当前本地时间（微秒）
-    uint64_t localTimeUs = HptimerGetUs();
+    const uint64_t localTimeUs = HptimerGetUs();
 
     // 应用时间偏移量得到同步时间（微秒）
-    uint64_t syncTimeUs = localTimeUs + timeOffset;
+    const uint64_t syncTimeUs = localTimeUs + m_timeOffset;
 
     // 转换为毫秒
     return syncTimeUs;
 }
 
-uint32_t SlaveDevice::getSyncTimestampMs()
+uint32_t SlaveDevice::GetSyncTimestampMs() const
 {
     // 获取当前本地时间（微秒）
-    uint64_t localTimeUs = HptimerGetUs();
+    const uint64_t localTimeUs = HptimerGetUs();
 
     // 应用时间偏移量得到同步时间（微秒）
-    uint64_t syncTimeUs = localTimeUs + timeOffset;
+    const uint64_t syncTimeUs = localTimeUs + m_timeOffset;
 
     // 转换为毫秒
     return static_cast<uint32_t>(syncTimeUs / 1000);
 }
 
-void SlaveDevice::resetDevice()
+void SlaveDevice::resetDevice() const
 {
     // reset Device only reset lockController1 for now design
-    if (accessoryTask)
+    if (m_accessoryTask)
     {
-        accessoryTask->resetLockController();
+        m_accessoryTask->resetLockController();
     }
 
     elog_v("SlaveDevice", "Device reset to READY state, configuration preserved");
@@ -165,18 +163,18 @@ void SlaveDevice::resetDevice()
 void SlaveDevice::sendPendingResponses()
 {
     // 发送待回复的Reset响应
-    if (hasPendingResetResponse && pendingResetResponse)
+    if (m_hasPendingResetResponse && m_pendingResetResponse)
     {
         elog_v(TAG, "Sending pending Reset response in active slot");
 
         std::vector<std::vector<uint8_t>> responseData =
-            processor.packSlave2MasterMessage(deviceId, *pendingResetResponse);
+            m_processor.packSlave2MasterMessage(m_deviceId, *m_pendingResetResponse);
 
         // 发送所有片段
         bool success = true;
         for (auto &fragment : responseData)
         {
-            if (!send(fragment))
+            if (send(fragment) != 0)
             {
                 elog_e(TAG, "Failed to send Reset response fragment");
                 success = false;
@@ -190,23 +188,23 @@ void SlaveDevice::sendPendingResponses()
         }
 
         // 清除待回复状态
-        hasPendingResetResponse = false;
-        pendingResetResponse.reset();
+        m_hasPendingResetResponse = false;
+        m_pendingResetResponse.reset();
     }
 
     // 发送待回复的SlaveControl响应
-    if (hasPendingSlaveControlResponse && pendingSlaveControlResponse)
+    if (m_hasPendingSlaveControlResponse && m_pendingSlaveControlResponse)
     {
         elog_v(TAG, "Sending pending SlaveControl response in active slot");
 
         std::vector<std::vector<uint8_t>> responseData =
-            processor.packSlave2MasterMessage(deviceId, *pendingSlaveControlResponse);
+            m_processor.packSlave2MasterMessage(m_deviceId, *m_pendingSlaveControlResponse);
 
         // 发送所有片段
         bool success = true;
         for (auto &fragment : responseData)
         {
-            if (!send(fragment))
+            if (send(fragment) != 0)
             {
                 elog_e(TAG, "Failed to send SlaveControl response fragment");
                 success = false;
@@ -220,17 +218,17 @@ void SlaveDevice::sendPendingResponses()
         }
 
         // 清除待回复状态
-        hasPendingSlaveControlResponse = false;
-        pendingSlaveControlResponse.reset();
+        m_hasPendingSlaveControlResponse = false;
+        m_pendingSlaveControlResponse.reset();
     }
 }
 
-void SlaveDevice::onSlotChanged(const SlotInfo &slotInfo)
+void SlaveDevice::OnSlotChanged(const SlotInfo &slotInfo)
 {
     // 如果有待回复的响应，即使不在采集状态也要处理
-    if (!isCollecting && (hasPendingResetResponse || hasPendingSlaveControlResponse))
+    if (!m_isCollecting && (m_hasPendingResetResponse || m_hasPendingSlaveControlResponse))
     {
-        if (slotInfo.slotType == SlotType::ACTIVE && slotInfo.activePin == 0)
+        if (slotInfo.m_slotType == SlotType::ACTIVE && slotInfo.m_activePin == 0)
         {
             elog_v(TAG, "Sending pending responses even when not collecting");
             sendPendingResponses();
@@ -239,13 +237,13 @@ void SlaveDevice::onSlotChanged(const SlotInfo &slotInfo)
     }
 
     // 只在采集状态下处理其他时隙事件
-    if (!isCollecting || !continuityCollector || !slotManager)
+    if (!m_isCollecting || !m_continuityCollector || !m_slotManager)
     {
         return;
     }
 
     // 检查是否是本设备的第一个激活时隙
-    if (slotInfo.slotType == SlotType::ACTIVE && slotInfo.activePin == 0)
+    if (slotInfo.m_slotType == SlotType::ACTIVE && slotInfo.m_activePin == 0)
     { // 第一个激活引脚
         elog_v(TAG, "Reached own first active slot");
 
@@ -253,82 +251,82 @@ void SlaveDevice::onSlotChanged(const SlotInfo &slotInfo)
         sendPendingResponses();
 
         // 然后发送缓存的数据（如果有）
-        if (hasDataToSend && !isFirstCollection)
+        if (m_hasDataToSend && !m_isFirstCollection)
         {
             elog_v(TAG, "Sending cached data to backend");
-            if (dataCollectionTask)
+            if (m_dataCollectionTask)
             {
-                dataCollectionTask->sendDataToBackend();
+                m_dataCollectionTask->sendDataToBackend();
             }
-            hasDataToSend = false;
+            m_hasDataToSend = false;
         }
     }
 
     // 通知采集器处理当前时隙
-    continuityCollector->processSlot(slotInfo.currentSlot, slotInfo.activePin, slotInfo.slotType == SlotType::ACTIVE);
+    m_continuityCollector->ProcessSlot(slotInfo.m_currentSlot, slotInfo.m_activePin,
+                                       slotInfo.m_slotType == SlotType::ACTIVE);
 
     // 检查采集是否完成
-    if (continuityCollector->isCollectionComplete())
+    if (m_continuityCollector->IsCollectionComplete())
     {
         elog_v(TAG, "Data collection cycle completed");
 
         // 如果不是第一次采集，保存数据准备在下次自己的时隙发送
-        if (!isFirstCollection)
+        if (!m_isFirstCollection)
         {
-            auto dataVector = continuityCollector->getDataVector();
+            const auto dataVector = m_continuityCollector->GetDataVector();
             lastCollectionData = dataVector;
-            hasDataToSend = true;
+            m_hasDataToSend = true;
             elog_v(TAG, "Saved %d bytes of data for next transmission", dataVector.size());
         }
         else
         {
             // 第一次采集完成，标记为非第一次
-            isFirstCollection = false;
+            m_isFirstCollection = false;
             elog_v(TAG, "First collection completed, no data to send yet");
         }
 
         // 清空数据矩阵并准备下一轮采集
-        continuityCollector->clearData();
+        m_continuityCollector->ClearData();
 
         // 重新启动采集器
-        if (continuityCollector->startCollection())
+        if (m_continuityCollector->StartCollection())
         {
             elog_v(TAG, "Starting new data collection cycle");
         }
         else
         {
             elog_e(TAG, "Failed to start new data collection cycle");
-            isCollecting = false;
-            deviceState = SlaveDeviceState::DEV_ERR;
-            if (slotManager)
+            m_isCollecting = false;
+            m_deviceState = SlaveDeviceState::DEV_ERR;
+            if (m_slotManager)
             {
-                slotManager->Stop();
+                m_slotManager->Stop();
             }
         }
     }
 }
 
-void SlaveDevice::setShortId(uint8_t id)
+void SlaveDevice::setShortId(const uint8_t id)
 {
-    shortId = id;
-    isJoined = true;
-    elog_d(TAG, "Short ID assigned: %d, device joined successfully", shortId);
+    m_shortId = id;
+    m_isJoined = true;
+    elog_d(TAG, "Short ID assigned: %d, device joined successfully", m_shortId);
 }
 
-void SlaveDevice::processFrame(Frame &frame)
+void SlaveDevice::processFrame(const Frame &frame)
 {
     elog_v("SlaveDevice", "Processing frame - PacketId: 0x%02X, payload size: %d", static_cast<int>(frame.packetId),
            frame.payload.size());
 
     if (frame.packetId == static_cast<uint8_t>(PacketId::MASTER_TO_SLAVE))
     {
-        uint32_t targetSlaveId;
         std::unique_ptr<Message> masterMessage;
 
-        if (processor.parseMaster2SlavePacket(frame.payload, targetSlaveId, masterMessage))
+        if (uint32_t targetSlaveId; m_processor.parseMaster2SlavePacket(frame.payload, targetSlaveId, masterMessage))
         {
             // Check if this message is for us (or broadcast)
-            if (targetSlaveId == deviceId || targetSlaveId == BROADCAST_ID)
+            if (targetSlaveId == m_deviceId || targetSlaveId == BROADCAST_ID)
             {
                 elog_d("SlaveDevice",
                        "Received Master2Slave message for device 0x%08X, "
@@ -337,23 +335,21 @@ void SlaveDevice::processFrame(Frame &frame)
                        static_cast<int>(masterMessage->getMessageId()));
 
                 // Process message and create response
-                auto response = processMaster2SlaveMessage(*masterMessage);
 
-                if (response)
+                if (const auto response = processMaster2SlaveMessage(*masterMessage))
                 {
                     elog_v("SlaveDevice", "Generated response message");
 
-                    std::vector<std::vector<uint8_t>> responseData;
-
                     elog_v("SlaveDevice", "Packing Slave2Master message: %s", response->getMessageTypeName());
-                    responseData = processor.packSlave2MasterMessage(deviceId, *response);
+                    std::vector<std::vector<uint8_t>> responseData =
+                        m_processor.packSlave2MasterMessage(m_deviceId, *response);
 
                     elog_v("SlaveDevice", "Sending response:");
 
                     // Send all fragments to master
                     for (auto &fragment : responseData)
                     {
-                        if (!send(fragment))
+                        if (send(fragment) != 0)
                         {
                             elog_e("SlaveDevice", "Failed to send response fragment");
                         }
@@ -365,7 +361,7 @@ void SlaveDevice::processFrame(Frame &frame)
                 elog_v("SlaveDevice",
                        "Message not for this device (target: 0x%08X, our ID: "
                        "0x%08X)",
-                       targetSlaveId, deviceId);
+                       targetSlaveId, m_deviceId);
             }
         }
         else
@@ -380,42 +376,40 @@ void SlaveDevice::processFrame(Frame &frame)
     }
 }
 
-void SlaveDevice::run()
+void SlaveDevice::run() const
 {
-    if (dataCollectionTask)
+    if (m_dataCollectionTask)
     {
-        dataCollectionTask->give();
+        m_dataCollectionTask->give();
         elog_d(TAG, "DataCollectionTask initialized and started");
     }
 
-    if (announceTask)
+    if (m_announceTask)
     {
-        announceTask->give();
+        m_announceTask->give();
         elog_d(TAG, "AnnounceTask initialized and started");
     }
 
-    if (joinTask)
+    if (m_joinTask)
     {
-        joinTask->give();
+        m_joinTask->give();
         elog_d(TAG, "JoinTask initialized and started");
     }
 
-    if (slaveDataProcT)
+    if (m_slaveDataProcT)
     {
-        slaveDataProcT->give();
+        m_slaveDataProcT->give();
         elog_d(TAG, "SlaveDataProcT initialized and started");
     }
 
-    if (accessoryTask)
+    if (m_accessoryTask)
     {
-        accessoryTask->give();
+        m_accessoryTask->give();
         elog_d(TAG, "AccessoryTask initialized and started");
     }
 
-    while (1)
+    while (true)
     {
-        // elog_d(TAG, "hptimer ms: %d", hal_hptimer_get_ms());
-
         HAL_GPIO_TogglePin(RUN_LED_GPIO_Port, RUN_LED_Pin);
         HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
         TaskBase::delay(500);
@@ -459,11 +453,11 @@ void SlaveDevice::AnnounceTask::task()
     vTaskSuspend(nullptr);
 }
 
-bool SlaveDevice::AnnounceTask::sendAnnounceMessage()
+bool SlaveDevice::AnnounceTask::sendAnnounceMessage() const
 {
     // 创建 AnnounceMessage
     WhtsProtocol::Slave2Master::AnnounceMessage announceMsg;
-    announceMsg.deviceId = parent.deviceId;
+    announceMsg.deviceId = parent.m_deviceId;
     announceMsg.versionMajor = FIRMWARE_VERSION_MAJOR;
     announceMsg.versionMinor = FIRMWARE_VERSION_MINOR;
     announceMsg.versionPatch = FIRMWARE_VERSION_PATCH;
@@ -471,13 +465,13 @@ bool SlaveDevice::AnnounceTask::sendAnnounceMessage()
     elog_d(TAG, "Creating announce message: ID=0x%08X, Version=%d.%d.%d", announceMsg.deviceId,
            announceMsg.versionMajor, announceMsg.versionMinor, announceMsg.versionPatch);
 
-    auto packedData = parent.processor.packSlave2MasterMessage(parent.deviceId, announceMsg);
+    auto packedData = parent.m_processor.packSlave2MasterMessage(parent.m_deviceId, announceMsg);
 
     // 发送所有数据包片段
     bool success = true;
     for (auto &fragment : packedData)
     {
-        if (!parent.send(fragment))
+        if (SlaveApp::SlaveDevice::send(fragment) != 0)
         {
             elog_e(TAG, "Failed to send announce message fragment");
             success = false;
@@ -500,7 +494,7 @@ void SlaveDevice::JoinTask::task()
     // 等待入网完成
     if (waitForJoin())
     {
-        elog_d(TAG, "Device successfully joined network with short ID: %d", parent.shortId);
+        elog_d(TAG, "Device successfully joined network with short ID: %d", parent.m_shortId);
     }
     else
     {
@@ -511,14 +505,13 @@ void SlaveDevice::JoinTask::task()
     vTaskSuspend(nullptr);
 }
 
-bool SlaveDevice::JoinTask::waitForJoin()
+bool SlaveDevice::JoinTask::waitForJoin() const
 {
-    uint32_t startTime = HptimerGetMs();
-    uint32_t timeoutMs = JOIN_TIMEOUT_MS;
+    const uint32_t startTime = HptimerGetMs();
 
-    while ((HptimerGetMs() - startTime) < timeoutMs)
+    while ((HptimerGetMs() - startTime) < JOIN_TIMEOUT_MS)
     {
-        if (parent.isJoined)
+        if (parent.m_isJoined)
         {
             return true;
         }
@@ -526,51 +519,6 @@ bool SlaveDevice::JoinTask::waitForJoin()
     }
 
     return false;
-}
-
-void SlaveDevice::JoinTask::handleShortIdAssign(uint8_t assignedShortId)
-{
-    elog_d(TAG, "Received short ID assignment: %d", assignedShortId);
-
-    // 设置短ID
-    parent.setShortId(assignedShortId);
-
-    // 发送确认消息
-    if (sendShortIdConfirm(assignedShortId, 0))
-    { // 0表示成功
-        elog_d(TAG, "Short ID confirm sent successfully");
-    }
-    else
-    {
-        elog_e(TAG, "Failed to send short ID confirm");
-    }
-}
-
-bool SlaveDevice::JoinTask::sendShortIdConfirm(uint8_t shortId, uint8_t status)
-{
-    // 创建 ShortIdConfirmMessage
-    WhtsProtocol::Slave2Master::ShortIdConfirmMessage confirmMsg;
-    confirmMsg.shortId = shortId;
-    confirmMsg.status = status;
-
-    elog_d(TAG, "Sending short ID confirm: shortId=%d, status=%d", shortId, status);
-
-    // 使用协议处理器打包消息
-    auto packedData = parent.processor.packSlave2MasterMessage(parent.deviceId, confirmMsg);
-
-    // 发送所有数据包片段
-    bool success = true;
-    for (auto &fragment : packedData)
-    {
-        if (!parent.send(fragment))
-        {
-            elog_e(TAG, "Failed to send short ID confirm fragment");
-            success = false;
-            break;
-        }
-    }
-
-    return success;
 }
 
 // DataCollectionTask 实现
@@ -589,9 +537,9 @@ void SlaveDevice::DataCollectionTask::task()
         processDataCollection();
 
         // 处理时隙管理器状态
-        if (parent.slotManager && parent.isCollecting)
+        if (parent.m_slotManager && parent.m_isCollecting)
         {
-            parent.slotManager->Process();
+            parent.m_slotManager->Process();
         }
 
         // 减少轮询间隔以提高时隙切换精度
@@ -599,30 +547,30 @@ void SlaveDevice::DataCollectionTask::task()
     }
 }
 
-void SlaveDevice::DataCollectionTask::processDataCollection()
+void SlaveDevice::DataCollectionTask::processDataCollection() const
 {
     // 检查是否有计划启动的采集
-    if (parent.isScheduledToStart && !parent.isCollecting)
+    if (parent.m_isScheduledToStart && !parent.m_isCollecting)
     {
-        uint64_t currentTimeUs = parent.getSyncTimestampUs();
+        uint64_t currentTimeUs = parent.GetSyncTimestampUs();
 
         // 检查是否到达启动时间
-        if (currentTimeUs >= parent.scheduledStartTime)
+        if (currentTimeUs >= parent.m_scheduledStartTime)
         {
             elog_i(TAG,
                    "Scheduled start time reached, starting data collection. "
                    "Current: %lu us, Scheduled: %lu us",
-                   (unsigned long)currentTimeUs, (unsigned long)parent.scheduledStartTime);
+                   static_cast<unsigned long>(currentTimeUs), static_cast<unsigned long>(parent.m_scheduledStartTime));
 
             // 启动采集和时隙管理器
-            if (parent.continuityCollector && parent.slotManager && parent.continuityCollector->startCollection() &&
-                parent.slotManager->Start())
+            if (parent.m_continuityCollector && parent.m_slotManager &&
+                parent.m_continuityCollector->StartCollection() && parent.m_slotManager->Start())
             {
-                parent.isCollecting = true;
-                parent.deviceState = SlaveDeviceState::RUNNING;
-                parent.isScheduledToStart = false;
-                parent.scheduledStartTime = 0;
-                parent.isFirstCollection = true; // 重置为第一次采集
+                parent.m_isCollecting = true;
+                parent.m_deviceState = SlaveDeviceState::RUNNING;
+                parent.m_isScheduledToStart = false;
+                parent.m_scheduledStartTime = 0;
+                parent.m_isFirstCollection = true; // 重置为第一次采集
                 elog_i(TAG, "Data collection and slot management started "
                             "successfully from scheduled start");
             }
@@ -630,9 +578,9 @@ void SlaveDevice::DataCollectionTask::processDataCollection()
             {
                 elog_e(TAG, "Failed to start scheduled data collection or slot "
                             "management");
-                parent.deviceState = SlaveDeviceState::DEV_ERR;
-                parent.isScheduledToStart = false;
-                parent.scheduledStartTime = 0;
+                parent.m_deviceState = SlaveDeviceState::DEV_ERR;
+                parent.m_isScheduledToStart = false;
+                parent.m_scheduledStartTime = 0;
             }
         }
     }
@@ -641,16 +589,16 @@ void SlaveDevice::DataCollectionTask::processDataCollection()
     // 实际的采集和数据处理由时隙管理器通过onSlotChanged回调处理
 }
 
-void SlaveDevice::DataCollectionTask::sendDataToBackend()
+void SlaveDevice::DataCollectionTask::sendDataToBackend() const
 {
-    if (!parent.isConfigured)
+    if (!parent.m_isConfigured)
     {
         elog_w(TAG, "Device not configured");
         return;
     }
 
     // 检查是否有缓存的数据可发送
-    if (!parent.hasDataToSend || parent.lastCollectionData.empty())
+    if (!parent.m_hasDataToSend || parent.lastCollectionData.empty())
     {
         elog_w(TAG, "No cached data available to send to backend");
         return;
@@ -669,13 +617,14 @@ void SlaveDevice::DataCollectionTask::sendDataToBackend()
         elog_v(TAG, "Sending %d bytes of cached conduction data to backend", dataMsg->conductionLength);
 
         // 使用协议处理器打包消息为Slave2Backend格式
-        auto packedData = parent.processor.packSlave2BackendMessage(parent.deviceId, parent.deviceStatus, *dataMsg);
+        const auto packedData =
+            parent.m_processor.packSlave2BackendMessage(parent.m_deviceId, parent.m_deviceStatus, *dataMsg);
 
         // 发送所有数据包片段
         bool success = true;
         for (size_t i = 0; i < packedData.size(); ++i)
         {
-            if (!parent.send(packedData[i]))
+            if (SlaveApp::SlaveDevice::send(packedData[i]) != 0)
             {
                 elog_e(TAG, "Failed to send data fragment %d/%d to backend", i + 1, packedData.size());
                 success = false;
@@ -700,12 +649,9 @@ void SlaveDevice::DataCollectionTask::sendDataToBackend()
     }
 }
 
-bool SlaveDevice::send(std::vector<uint8_t> &frame)
+int SlaveDevice::send(const std::vector<uint8_t> &frame)
 {
-    // UWB_SendData to send
-    UWB_SendData(frame.data(), frame.size(), 0);
-
-    return true;
+    return UwbSendData(frame.data(), frame.size(), 0);
 }
 
 // SlaveDataProcT 实现
@@ -717,10 +663,10 @@ SlaveDevice::SlaveDataProcT::SlaveDataProcT(SlaveDevice &parent)
 void SlaveDevice::SlaveDataProcT::task()
 {
     elog_i(TAG, "SlaveDataProcT started");
-    uwb_rx_msg_t msg;
+    uwbRxMsg msg;
     for (;;)
     {
-        if (UWB_ReceiveData(&msg, 0) == 0)
+        if (UwbReceiveData(&msg, 0) == 0)
         {
             elog_v(TAG, "SlaveDataProcT recvData size: %d", msg.data_len);
             // copy msg.data to recvData
@@ -730,11 +676,11 @@ void SlaveDevice::SlaveDataProcT::task()
             {
                 // process recvData
                 elog_d(TAG, "recvData size: %d", recvData.size());
-                parent.processor.processReceivedData(recvData);
+                parent.m_processor.processReceivedData(recvData);
 
                 // process complete frame
                 Frame receivedFrame;
-                while (parent.processor.getNextCompleteFrame(receivedFrame))
+                while (parent.m_processor.getNextCompleteFrame(receivedFrame))
                 {
                     parent.processFrame(receivedFrame);
                 }
@@ -790,14 +736,14 @@ void SlaveDevice::AccessoryTask::resetLockController()
 
 void SlaveDevice::AccessoryTask::updateDeviceStatus()
 {
-    parent.deviceStatus.pressureSensor = pSensor.IsTrigger();
-    parent.deviceStatus.clrSensor = clrSensor.IsTrigger();
-    parent.deviceStatus.accessory1 = auxBtn1.IsPressed();
-    parent.deviceStatus.accessory2 = auxBtn2.IsPressed();
-    parent.deviceStatus.electromagneticLock1 = (lockController.GetState() == LockState::Locked);
-    parent.deviceStatus.electromagneticLock2 = false;
-    parent.deviceStatus.electromagnetUnlockButton = unlockBtn.IsPressed();
-    parent.deviceStatus.sleeveLimit = false;
+    parent.m_deviceStatus.pressureSensor = pSensor.IsTrigger();
+    parent.m_deviceStatus.clrSensor = clrSensor.IsTrigger();
+    parent.m_deviceStatus.accessory1 = auxBtn1.IsPressed();
+    parent.m_deviceStatus.accessory2 = auxBtn2.IsPressed();
+    parent.m_deviceStatus.electromagneticLock1 = (lockController.GetState() == LockState::Locked);
+    parent.m_deviceStatus.electromagneticLock2 = false;
+    parent.m_deviceStatus.electromagnetUnlockButton = unlockBtn.IsPressed();
+    parent.m_deviceStatus.sleeveLimit = false;
 
     HAL_ADC_Start(&hadc1);
     HAL_ADC_PollForConversion(&hadc1, 10);
@@ -805,15 +751,15 @@ void SlaveDevice::AccessoryTask::updateDeviceStatus()
     battery_voltage = (adc_value / 4095.0f) * 3.15f * 2.0f;
 
     // 判断逻辑（带滞回）
-    if (!parent.deviceStatus.batteryLowAlarm && battery_voltage < BATTERY_VOLTAGE_THRESHOLD)
+    if (!parent.m_deviceStatus.batteryLowAlarm && battery_voltage < BATTERY_VOLTAGE_THRESHOLD)
     {
-        parent.deviceStatus.batteryLowAlarm = true;
+        parent.m_deviceStatus.batteryLowAlarm = true;
         HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
     }
-    else if (parent.deviceStatus.batteryLowAlarm &&
+    else if (parent.m_deviceStatus.batteryLowAlarm &&
              battery_voltage > BATTERY_VOLTAGE_THRESHOLD + BATTERY_VOLTAGE_THRESHOLD_OFFSET)
     {
-        parent.deviceStatus.batteryLowAlarm = false;
+        parent.m_deviceStatus.batteryLowAlarm = false;
         HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
     }
 }

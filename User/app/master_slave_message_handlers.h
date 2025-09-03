@@ -1,11 +1,8 @@
 #pragma once
 
-#include <functional>
 #include <memory>
 
 #include "WhtsProtocol.h"
-#include "continuity_collector.h"
-#include "slave_device_state.h"
 
 using namespace WhtsProtocol;
 
@@ -20,164 +17,160 @@ class IMaster2SlaveMessageHandler
 {
   public:
     virtual ~IMaster2SlaveMessageHandler() = default;
-    virtual std::unique_ptr<Message> processMessage(const Message &message, SlaveDevice *device) = 0;
+    virtual std::unique_ptr<Message> ProcessMessage(const Message &message, SlaveDevice *device) = 0;
 };
 
 // Sync Message Handler
-class SyncMessageHandler : public IMaster2SlaveMessageHandler
+class SyncMessageHandler final : public IMaster2SlaveMessageHandler
 {
   public:
-    static SyncMessageHandler &getInstance()
+    static SyncMessageHandler &GetInstance()
     {
         static SyncMessageHandler instance;
         return instance;
     }
-    std::unique_ptr<Message> processMessage(const Message &message, SlaveDevice *device) override;
+    std::unique_ptr<Message> ProcessMessage(const Message &message, SlaveDevice *device) override;
+    SyncMessageHandler &operator=(const SyncMessageHandler &) = delete;
+    SyncMessageHandler(const SyncMessageHandler &) = delete;
 
   private:
     SyncMessageHandler() = default;
-    SyncMessageHandler(const SyncMessageHandler &) = delete;
-    SyncMessageHandler &operator=(const SyncMessageHandler &) = delete;
 };
 
 // SetTime Message Handler
-class SetTimeMessageHandler : public IMaster2SlaveMessageHandler
+class SetTimeMessageHandler final : public IMaster2SlaveMessageHandler
 {
   public:
-    static SetTimeMessageHandler &getInstance()
+    static SetTimeMessageHandler &GetInstance()
     {
         static SetTimeMessageHandler instance;
         return instance;
     }
-    std::unique_ptr<Message> processMessage(const Message &message, SlaveDevice *device) override;
+    std::unique_ptr<Message> ProcessMessage(const Message &message, SlaveDevice *device) override;
+    SetTimeMessageHandler(const SetTimeMessageHandler &) = delete;
+    SetTimeMessageHandler &operator=(const SetTimeMessageHandler &) = delete;
 
   private:
     SetTimeMessageHandler() = default;
-    SetTimeMessageHandler(const SetTimeMessageHandler &) = delete;
-    SetTimeMessageHandler &operator=(const SetTimeMessageHandler &) = delete;
 };
 
 // Conduction Config Message Handler
-class ConductionConfigHandler : public IMaster2SlaveMessageHandler
+class ConductionConfigHandler final : public IMaster2SlaveMessageHandler
 {
   public:
-    static ConductionConfigHandler &getInstance()
+    static ConductionConfigHandler &GetInstance()
     {
         static ConductionConfigHandler instance;
         return instance;
     }
-    std::unique_ptr<Message> processMessage(const Message &message, SlaveDevice *device) override;
+    std::unique_ptr<Message> ProcessMessage(const Message &message, SlaveDevice *device) override;
+    ConductionConfigHandler(const ConductionConfigHandler &) = delete;
+    ConductionConfigHandler &operator=(const ConductionConfigHandler &) = delete;
 
   private:
     ConductionConfigHandler() = default;
-    ConductionConfigHandler(const ConductionConfigHandler &) = delete;
-    ConductionConfigHandler &operator=(const ConductionConfigHandler &) = delete;
 };
 
 // Resistance Config Message Handler
-class ResistanceConfigHandler : public IMaster2SlaveMessageHandler
+class ResistanceConfigHandler final : public IMaster2SlaveMessageHandler
 {
   public:
-    static ResistanceConfigHandler &getInstance()
+    static ResistanceConfigHandler &GetInstance()
     {
         static ResistanceConfigHandler instance;
         return instance;
     }
-    std::unique_ptr<Message> processMessage(const Message &message, SlaveDevice *device) override;
+    std::unique_ptr<Message> ProcessMessage(const Message &message, SlaveDevice *device) override;
+    ResistanceConfigHandler(const ResistanceConfigHandler &) = delete;
+    ResistanceConfigHandler &operator=(const ResistanceConfigHandler &) = delete;
 
   private:
     ResistanceConfigHandler() = default;
-    ResistanceConfigHandler(const ResistanceConfigHandler &) = delete;
-    ResistanceConfigHandler &operator=(const ResistanceConfigHandler &) = delete;
 };
 
 // Clip Config Message Handler
-class ClipConfigHandler : public IMaster2SlaveMessageHandler
+class ClipConfigHandler final : public IMaster2SlaveMessageHandler
 {
   public:
-    static ClipConfigHandler &getInstance()
+    static ClipConfigHandler &GetInstance()
     {
         static ClipConfigHandler instance;
         return instance;
     }
-    std::unique_ptr<Message> processMessage(const Message &message, SlaveDevice *device) override;
+    std::unique_ptr<Message> ProcessMessage(const Message &message, SlaveDevice *device) override;
+    ClipConfigHandler(const ClipConfigHandler &) = delete;
+    ClipConfigHandler &operator=(const ClipConfigHandler &) = delete;
 
   private:
     ClipConfigHandler() = default;
-    ClipConfigHandler(const ClipConfigHandler &) = delete;
-    ClipConfigHandler &operator=(const ClipConfigHandler &) = delete;
 };
 
-// Note: ReadConductionDataHandler, ReadResistanceDataHandler, and
-// ReadClipDataHandler have been removed as they conflict with the new
-// push-based data collection architecture.
-
 // Ping Request Message Handler
-class PingRequestHandler : public IMaster2SlaveMessageHandler
+class PingRequestHandler final : public IMaster2SlaveMessageHandler
 {
   public:
-    static PingRequestHandler &getInstance()
+    static PingRequestHandler &GetInstance()
     {
         static PingRequestHandler instance;
         return instance;
     }
-    std::unique_ptr<Message> processMessage(const Message &message, SlaveDevice *device) override;
+    std::unique_ptr<Message> ProcessMessage(const Message &message, SlaveDevice *device) override;
+    PingRequestHandler(const PingRequestHandler &) = delete;
+    PingRequestHandler &operator=(const PingRequestHandler &) = delete;
 
   private:
     PingRequestHandler() = default;
-    PingRequestHandler(const PingRequestHandler &) = delete;
-    PingRequestHandler &operator=(const PingRequestHandler &) = delete;
 };
 
 // Reset Message Handler
-class ResetMessageHandler : public IMaster2SlaveMessageHandler
+class ResetMessageHandler final : public IMaster2SlaveMessageHandler
 {
   public:
-    static ResetMessageHandler &getInstance()
+    static ResetMessageHandler &GetInstance()
     {
         static ResetMessageHandler instance;
         return instance;
     }
-    std::unique_ptr<Message> processMessage(const Message &message, SlaveDevice *device) override;
+    std::unique_ptr<Message> ProcessMessage(const Message &message, SlaveDevice *device) override;
+    ResetMessageHandler(const ResetMessageHandler &) = delete;
+    ResetMessageHandler &operator=(const ResetMessageHandler &) = delete;
 
   private:
     ResetMessageHandler() = default;
-    ResetMessageHandler(const ResetMessageHandler &) = delete;
-    ResetMessageHandler &operator=(const ResetMessageHandler &) = delete;
 };
 
 // Short ID Assignment Message Handler
-class ShortIdAssignHandler : public IMaster2SlaveMessageHandler
+class ShortIdAssignHandler final : public IMaster2SlaveMessageHandler
 {
   public:
-    static ShortIdAssignHandler &getInstance()
+    static ShortIdAssignHandler &GetInstance()
     {
         static ShortIdAssignHandler instance;
         return instance;
     }
-    std::unique_ptr<Message> processMessage(const Message &message, SlaveDevice *device) override;
+    std::unique_ptr<Message> ProcessMessage(const Message &message, SlaveDevice *device) override;
+    ShortIdAssignHandler(const ShortIdAssignHandler &) = delete;
+    ShortIdAssignHandler &operator=(const ShortIdAssignHandler &) = delete;
 
   private:
     ShortIdAssignHandler() = default;
-    ShortIdAssignHandler(const ShortIdAssignHandler &) = delete;
-    ShortIdAssignHandler &operator=(const ShortIdAssignHandler &) = delete;
 };
 
-// Slave Control Message Handler
-class SlaveControlHandler : public IMaster2SlaveMessageHandler
+// Secondary Control Message Handler
+class SlaveControlHandler final : public IMaster2SlaveMessageHandler
 {
   public:
-    static SlaveControlHandler &getInstance()
+    static SlaveControlHandler &GetInstance()
     {
         static SlaveControlHandler instance;
         return instance;
     }
-    std::unique_ptr<Message> processMessage(const Message &message, SlaveDevice *device) override;
+    std::unique_ptr<Message> ProcessMessage(const Message &message, SlaveDevice *device) override;
+    SlaveControlHandler(const SlaveControlHandler &) = delete;
+    SlaveControlHandler &operator=(const SlaveControlHandler &) = delete;
 
   private:
     SlaveControlHandler() = default;
-    SlaveControlHandler(const SlaveControlHandler &) = delete;
-    SlaveControlHandler &operator=(const SlaveControlHandler &) = delete;
 };
 
 } // namespace SlaveApp

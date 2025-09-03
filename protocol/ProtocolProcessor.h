@@ -31,7 +31,7 @@ class ProtocolProcessor {
     ~ProtocolProcessor();
 
     // 设置最大传输单元大小 (MTU)
-    void setMTU(size_t mtu) { mtu_ = mtu; }
+    void SetMTU(size_t mtu) { mtu_ = mtu; }
     size_t getMTU() const { return mtu_; }
 
     // 打包Master2Slave消息 (支持自动分片)

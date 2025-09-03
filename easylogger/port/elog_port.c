@@ -101,7 +101,7 @@ void elog_port_output_unlock(void) { osSemaphoreRelease(elog_lockHandle); }
  * @param device pointer to SlaveDevice instance
  * @param timestamp_func function to get synchronized timestamp in milliseconds
  */
-void elog_set_slave_device(void* device, uint32_t (*timestamp_func)(void*)) {
+void ElogSetSlaveDevice(void* device, uint32_t (*timestamp_func)(void*)) {
     g_slave_device_instance = device;
     get_sync_timestamp_ms_func = timestamp_func;
 }

@@ -60,16 +60,16 @@ class HalValve
 };
 
 // 拨码开关信息结构体
-#ifndef DIPSWITCHINFO_DEFINED
-#define DIPSWITCHINFO_DEFINED
+#ifndef DIP_SWITCH_INFO_DEFINED
+#define DIP_SWITCH_INFO_DEFINED
 struct DipSwitchInfo
 {
     struct PinInfo
     {
-        GPIO_TypeDef *Port;
-        uint16_t Pin;
+        GPIO_TypeDef *m_port;
+        uint16_t m_pin;
     };
-    PinInfo Pins[8];
+    PinInfo pinInfo[8];
 };
 #endif
 
@@ -77,12 +77,12 @@ struct DipSwitchInfo
 class HalDipSwitch
 {
   public:
-    HalDipSwitch(const DipSwitchInfo &info);
+    explicit HalDipSwitch(const DipSwitchInfo &info);
 
     // 保持原有函数接口
-    bool IsOn(int index) const;
-    uint8_t Value() const;
+    [[nodiscard]] bool IsOn(int index) const;
+    [[nodiscard]] uint8_t Value() const;
 
   private:
-    HalButton m_Keys[8];
+    HalButton m_keys[8];
 };

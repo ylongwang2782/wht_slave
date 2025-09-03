@@ -28,18 +28,18 @@ uint64_t HptimerGetUs64(void);
 
 /**
  * @brief 获取从某一参考时间起已经经过的时间（μs）
- * @param ref_time 起始时间（通过 hal_hptimer_get_us() 获取）
+ * @param refTime 起始时间（通过 hal_hptimer_get_us() 获取）
  * @return 已经过的时间（μs）
  */
-uint32_t HptimerElapsedUs(uint32_t ref_time);
+uint32_t HptimerElapsedUs(uint32_t refTime);
 
 /**
  * @brief 判断某个超时时间是否已到
- * @param ref_time 起始时间
- * @param timeout_us 超时时间（μs）
+ * @param refTime 起始时间
+ * @param timeoutUs 超时时间（μs）
  * @return true 表示已超时
  */
-bool HptimerIsTimeoutUs(uint32_t ref_time, uint32_t timeout_us);
+bool HptimerIsTimeoutUs(uint32_t refTime, uint32_t timeoutUs);
 
 /**
  * @brief 延时指定的微秒数（会 busy-wait）

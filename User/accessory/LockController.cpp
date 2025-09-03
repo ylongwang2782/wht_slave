@@ -1,45 +1,45 @@
 #include "LockController.h"
 
 LockController::LockController(const char *name, HalButton &keyButton, HalButton &unlockButton, HalValve &lockValve)
-    : m_Name(name), m_KeyButton(keyButton), m_UnlockButton(unlockButton), m_LockValve(lockValve),
-      m_State(LockState::Unlocked)
+    : m_name(name), m_keyButton(keyButton), m_unlockButton(unlockButton), m_lockValve(lockValve),
+      m_state(LockState::Unlocked)
 {
 }
 
 void LockController::Update()
 {
     // 更新按钮边沿状态
-    m_KeyButton.Update();
-    m_UnlockButton.Update();
+    m_keyButton.Update();
+    m_unlockButton.Update();
 
     // 钥匙按钮按下 → 上锁（打开阀门）
-    if (m_KeyButton.WasPressed())
+    if (m_keyButton.WasPressed())
     {
-        m_LockValve.Open();
-        m_State = LockState::Locked;
+        m_lockValve.Open();
+        m_state = LockState::Locked;
     }
 
     // 解锁按钮按下 → 解锁（关闭阀门）
-    if (m_UnlockButton.WasPressed())
+    if (m_unlockButton.WasPressed())
     {
-        m_LockValve.Close();
-        m_State = LockState::Unlocked;
+        m_lockValve.Close();
+        m_state = LockState::Unlocked;
     }
 }
 
 void LockController::Reset()
 {
     // 复位操作：解锁并关闭阀门
-    m_LockValve.Close();
-    m_State = LockState::Unlocked;
+    m_lockValve.Close();
+    m_state = LockState::Unlocked;
 }
 
 LockState LockController::GetState() const
 {
-    return m_State;
+    return m_state;
 }
 
 const char *LockController::GetName() const
 {
-    return m_Name;
+    return m_name;
 }

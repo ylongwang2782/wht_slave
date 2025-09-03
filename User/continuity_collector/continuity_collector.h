@@ -20,10 +20,10 @@ enum class ContinuityState : uint8_t
 // GPIO端口和引脚映射结构
 struct GpioPin
 {
-    GPIO_TypeDef *port;
-    uint16_t pin;
+    GPIO_TypeDef *m_port;
+    uint16_t m_pin;
 
-    GpioPin(GPIO_TypeDef *p = nullptr, uint16_t pin_num = 0) : port(p), pin(pin_num)
+    explicit GpioPin(GPIO_TypeDef *p = nullptr, const uint16_t pinNum = 0) : m_port(p), m_pin(pinNum)
     {
     }
 };
@@ -31,8 +31,8 @@ struct GpioPin
 // 使用CubeMX生成的宏定义的引脚映射表 (64个引脚)
 static const struct
 {
-    GPIO_TypeDef *port;
-    uint16_t pin;
+    GPIO_TypeDef *m_port;
+    uint16_t m_pin;
 } HARDWARE_PIN_MAP[64] = {
     // IO1-IO64 使用CubeMX生成的宏定义
     {IO1_GPIO_Port, IO1_Pin},   // IO1
@@ -104,21 +104,22 @@ static const struct
 // 导通数据采集配置
 struct CollectorConfig
 {
-    uint8_t num;                // 导通检测数量 (本设备负责的引脚数量)
-    uint16_t totalDetectionNum; // 总检测数量 (整个采集周期的时隙数量)
+    uint8_t m_num;                // 导通检测数量 (本设备负责的引脚数量)
+    uint16_t m_totalDetectionNum; // 总检测数量 (整个采集周期的时隙数量)
 
-    CollectorConfig(uint8_t n = 2, uint16_t totalDetNum = 4) : num(n), totalDetectionNum(totalDetNum)
+    explicit CollectorConfig(const uint8_t n = 2, const uint16_t totalDetNum = 4)
+        : m_num(n), m_totalDetectionNum(totalDetNum)
     {
-        if (num > 64)
-            num = 64;
-        if (totalDetectionNum == 0 || totalDetectionNum > 65535)
-            totalDetectionNum = 65535;
+        if (m_num > 64)
+            m_num = 64;
+        if (m_totalDetectionNum == 0 || m_totalDetectionNum > 65535)
+            m_totalDetectionNum = 65535;
 
-        elog_v("CollectorConfig", "Constructor: num=%d, totalDetectionNum=%d", num, totalDetectionNum);
+        elog_v("CollectorConfig", "Constructor: num=%d, totalDetectionNum=%d", m_num, m_totalDetectionNum);
     }
 
     // 获取逻辑引脚对应的物理引脚
-    uint8_t getPhysicalPin(uint8_t logicalPin) const
+    [[nodiscard]] static uint8_t GetPhysicalPin(const uint8_t logicalPin)
     {
         elog_v("CollectorConfig", "getPhysicalPin called, logicalPin: %d", logicalPin);
 
@@ -134,7 +135,7 @@ struct CollectorConfig
     }
 
     // 将逻辑引脚号转换为GPIO端口和引脚
-    GpioPin getGpioPin(uint8_t logicalPin) const;
+    static GpioPin GetGpioPin(uint8_t logicalPin);
 };
 
 // 导通数据矩阵类型
@@ -160,31 +161,31 @@ class ContinuityCollector
 {
   private:
     // define TAG
-    static constexpr const char *TAG = "ConCollector";
+    static constexpr auto TAG = "ConCollector";
     static constexpr uint8_t MAX_GPIO_PINS = 64;
 
-    CollectorConfig config_;      // 采集配置
-    ContinuityMatrix dataMatrix_; // 数据矩阵
+    CollectorConfig m_config;      // 采集配置
+    ContinuityMatrix m_dataMatrix; // 数据矩阵
 
-    CollectionStatus status_;           // 采集状态
-    uint16_t currentCycle_;             // 当前周期
-    ProgressCallback progressCallback_; // 进度回调
+    CollectionStatus m_status;           // 采集状态
+    uint16_t m_currentCycle;             // 当前周期
+    ProgressCallback m_progressCallback; // 进度回调
 
     // 引脚状态跟踪
-    int8_t lastActivePin_; // 上一个激活的引脚（-1表示无）
+    int8_t m_lastActivePin; // 上一个激活的引脚（-1表示无）
 
     // 私有方法
-    void initializeGpioPins();                                   // 初始化GPIO引脚
-    void deinitializeGpioPins();                                 // 反初始化GPIO引脚
-    ContinuityState readPinContinuity(uint8_t logicalPin);       // 读取单个引脚导通状态
-    void configurePinsForSlot(uint8_t activePin, bool isActive); // 为指定时隙配置引脚模式
-    void delayMs(uint32_t ms);                                   // 延迟函数
+    void InitializeGpioPins();                                   // 初始化GPIO引脚
+    void DeinitializeGpioPins();                                 // 反初始化GPIO引脚
+    ContinuityState ReadPinContinuity(uint8_t logicalPin);       // 读取单个引脚导通状态
+    void ConfigurePinsForSlot(uint8_t activePin, bool isActive); // 为指定时隙配置引脚模式
+    void DelayMs(uint32_t ms);                                   // 延迟函数
 
     // HAL库GPIO辅助函数
-    void halGpioInit(const GpioPin &gpioPin, uint32_t mode, uint32_t pull, GPIO_PinState initialState = GPIO_PIN_RESET);
-    void halGpioDeinit(const GpioPin &gpioPin);
-    GPIO_PinState halGpioRead(const GpioPin &gpioPin);
-    void halGpioWrite(const GpioPin &gpioPin, GPIO_PinState state);
+    void HalGpioInit(const GpioPin &gpioPin, uint32_t mode, uint32_t pull, GPIO_PinState initialState = GPIO_PIN_RESET);
+    void HalGpioDeinit(const GpioPin &gpioPin);
+    GPIO_PinState HalGpioRead(const GpioPin &gpioPin);
+    void HalGpioWrite(const GpioPin &gpioPin, GPIO_PinState state);
 
   public:
     ContinuityCollector();
@@ -195,58 +196,58 @@ class ContinuityCollector
     ContinuityCollector &operator=(const ContinuityCollector &) = delete;
 
     // 配置采集参数
-    bool configure(const CollectorConfig &config);
+    bool Configure(const CollectorConfig &config);
 
     // 开始采集
-    bool startCollection();
+    bool StartCollection();
 
     // 停止采集
-    void stopCollection();
+    void StopCollection();
 
     // 处理时隙事件（由外部时隙管理器调用）
-    void processSlot(uint16_t slotNumber, uint8_t activePin, bool isActive);
+    void ProcessSlot(uint16_t slotNumber, uint8_t activePin, bool isActive);
 
     // 获取采集状态
-    CollectionStatus getStatus() const;
+    [[nodiscard]] CollectionStatus GetStatus() const;
 
     // 获取当前周期
-    uint16_t getCurrentCycle() const;
+    [[nodiscard]] uint16_t GetCurrentCycle() const;
 
     // 获取总周期数
-    uint16_t getTotalCycles() const;
+    [[nodiscard]] uint16_t GetTotalCycles() const;
 
     // 获取采集数据
-    ContinuityMatrix getDataMatrix() const;
+    [[nodiscard]] ContinuityMatrix GetDataMatrix() const;
 
     // 获取指定周期的数据
-    std::vector<ContinuityState> getCycleData(uint16_t cycle) const;
+    [[nodiscard]] std::vector<ContinuityState> GetCycleData(uint16_t cycle) const;
 
     // 检查是否有新数据
-    bool hasNewData() const;
+    [[nodiscard]] bool HasNewData() const;
 
     // 检查采集是否完成
-    bool isCollectionComplete() const;
+    [[nodiscard]] bool IsCollectionComplete() const;
 
     // 设置进度回调
-    void setProgressCallback(ProgressCallback callback);
+    void SetProgressCallback(ProgressCallback callback);
 
     // 获取采集配置
-    const CollectorConfig &getConfig() const
+    [[nodiscard]] const CollectorConfig &GetConfig() const
     {
-        return config_;
+        return m_config;
     }
 
     // 获取采集进度百分比
-    float getProgress() const;
+    [[nodiscard]] float GetProgress() const;
 
     // 获取压缩数据向量（按位压缩，小端模式）
-    std::vector<uint8_t> getDataVector() const;
+    [[nodiscard]] std::vector<uint8_t> GetDataVector() const;
 
     // 获取指定引脚的所有周期数据
-    std::vector<ContinuityState> getPinData(uint8_t pin) const;
+    [[nodiscard]] std::vector<ContinuityState> GetPinData(uint8_t pin) const;
 
     // 清空数据矩阵
-    void clearData();
+    void ClearData();
 
     // 统计功能
     struct Statistics
@@ -257,7 +258,7 @@ class ContinuityCollector
         uint8_t mostActivePins[5];    // 最活跃的5个引脚
     };
 
-    Statistics calculateStatistics() const;
+    Statistics CalculateStatistics() const;
 };
 
 // 导通数据采集器工厂类
@@ -265,7 +266,7 @@ class ContinuityCollectorFactory
 {
   public:
     // 创建采集器
-    static std::unique_ptr<ContinuityCollector> create();
+    static std::unique_ptr<ContinuityCollector> Create();
 };
 
 #endif // CONTINUITY_COLLECTOR_H
