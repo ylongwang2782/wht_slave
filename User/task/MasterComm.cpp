@@ -16,16 +16,15 @@ extern CX310_SlaveSpiAdapter *g_uwbAdapter;
 #define TX_QUEUE_SIZE 10
 #define RX_QUEUE_SIZE 10
 
-static osMessageQueueId_t uwbTxQueue; // UWB发送队列
-static osMessageQueueId_t uwbRxQueue; // UWB接收队列
-static osThreadId_t uwbCommTaskHandle;
-static osSemaphoreId_t uwbTxSemaphore; // UWB发送信号量
+// 静态包装函数，用于FreeRTOS任务创建
+void MasterComm::UwbCommTaskWrapper(void *argument)
+{
+    MasterComm *instance = static_cast<MasterComm *>(argument);
+    instance->UwbCommTask();
+}
 
-// 接收数据回调函数指针
-typedef void (*UwbRxCallback)(const uwbRxMsg *msg);
-static UwbRxCallback uwbRxCallback = nullptr;
-
-static void uwb_comm_task(void *argument)
+// 实际的任务实现方法
+void MasterComm::UwbCommTask()
 {
     static auto TAG = "uwb_comm";
     UwbTxMsg txMsg;
@@ -52,7 +51,7 @@ static void uwb_comm_task(void *argument)
             // 从队列获取发送消息
             if (osMessageQueueGet(uwbTxQueue, &txMsg, nullptr, 0) == osOK)
             {
-                std::vector<uint8_t> tx_data(txMsg.data, txMsg.data + txMsg.data_len);
+                std::vector<uint8_t> tx_data(txMsg.data, txMsg.data + txMsg.dataLen);
                 elog_i(TAG, "tx begin");
                 uwb.update();
                 uwb.data_transmit(tx_data);
@@ -61,14 +60,20 @@ static void uwb_comm_task(void *argument)
 
         if (uwb.get_recv_data(buffer))
         {
-            rxMsg.data_len = buffer.size();
-            for (int i = 0; i < rxMsg.data_len; i++)
+            rxMsg.dataLen = buffer.size();
+            for (int i = 0; i < rxMsg.dataLen; i++)
             {
                 rxMsg.data[i] = buffer[i];
             }
             rxMsg.timestamp = osKernelGetTickCount();
-            rxMsg.status_reg = 0;
+            rxMsg.statusReg = 0;
             osMessageQueuePut(uwbRxQueue, &rxMsg, 0, 0);
+
+            // 如果有回调函数，调用它
+            if (uwbRxCallback != nullptr)
+            {
+                uwbRxCallback(&rxMsg);
+            }
         }
 
         uwb.update();
@@ -77,6 +82,8 @@ static void uwb_comm_task(void *argument)
 }
 
 MasterComm::MasterComm()
+    : uwbTxQueue(nullptr), uwbRxQueue(nullptr), uwbCommTaskHandle(nullptr), uwbTxSemaphore(nullptr),
+      uwbRxCallback(nullptr)
 {
     Initialize();
 }
@@ -120,7 +127,7 @@ int MasterComm::Initialize(void)
         .priority = (osPriority_t)osPriorityNormal,
     };
 
-    uwbCommTaskHandle = osThreadNew(uwb_comm_task, nullptr, &uwbTaskAttributes);
+    uwbCommTaskHandle = osThreadNew(UwbCommTaskWrapper, this, &uwbTaskAttributes);
     return 0;
 }
 
@@ -133,7 +140,7 @@ int MasterComm::SendData(const uint8_t *data, uint16_t len, uint32_t delayMs)
 
     UwbTxMsg msg;
     msg.type = UWB_MSG_TYPE_SEND_DATA;
-    msg.data_len = len;
+    msg.dataLen = len;
     msg.delay_ms = delayMs;
 
     // 复制数据到消息结构体
@@ -171,7 +178,7 @@ int MasterComm::ReceiveData(uwbRxMsg *msg, uint32_t timeoutMs)
 
 void MasterComm::SetRxCallback(UwbRxCallback callback)
 {
-    uwbRxCallback = callback;
+    this->uwbRxCallback = callback;
 }
 
 int MasterComm::GetTxQueueCount()
@@ -206,7 +213,7 @@ int MasterComm::Reconfigure()
 {
     UwbTxMsg msg;
     msg.type = UWB_MSG_TYPE_CONFIG;
-    msg.data_len = 0;
+    msg.dataLen = 0;
 
     if (osMessageQueuePut(uwbTxQueue, &msg, 0, 100) != osOK)
     {

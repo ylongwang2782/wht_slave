@@ -668,9 +668,9 @@ void SlaveDevice::SlaveDataProcT::task()
     {
         if (parent.m_masterComm.ReceiveData(&msg, 0) == 0)
         {
-            elog_v(TAG, "SlaveDataProcT recvData size: %d", msg.data_len);
+            elog_v(TAG, "SlaveDataProcT recvData size: %d", msg.dataLen);
             // copy msg.data to recvData
-            recvData.assign(msg.data, msg.data + msg.data_len);
+            recvData.assign(msg.data, msg.data + msg.dataLen);
 
             if (!recvData.empty())
             {
