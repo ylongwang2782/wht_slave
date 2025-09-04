@@ -256,8 +256,8 @@ void Error_Handler(void);
 #define ELV3_GPIO_Port GPIOB
 #define ELV2_Pin GPIO_PIN_0
 #define ELV2_GPIO_Port GPIOE
-#define VALVE1_Pin GPIO_PIN_1
-#define VALVE1_GPIO_Port GPIOE
+#define ELV1_Pin GPIO_PIN_1
+#define ELV1_GPIO_Port GPIOE
 
 /* USER CODE BEGIN Private defines */
 

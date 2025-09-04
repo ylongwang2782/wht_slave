@@ -691,18 +691,20 @@ SlaveDevice::AccessoryTask::AccessoryTask(SlaveDevice &parent)
       unlockBtn("unlockBtn", UNLOCK_BTN_GPIO_Port, UNLOCK_BTN_Pin),
       auxBtn1("auxBtn1", AUX_BTN1_GPIO_Port, AUX_BTN1_Pin), auxBtn2("auxBtn2", AUX_BTN2_GPIO_Port, AUX_BTN2_Pin),
       pSensor("pSensor", P_SENSOR_GPIO_Port, P_SENSOR_Pin),
-      clrSensor("clrSensor", CLR_SENSOR_GPIO_Port, CLR_SENSOR_Pin), valve1("Valve1", VALVE1_GPIO_Port, VALVE1_Pin),
-      dipInfo{{
-          {DIP1_GPIO_Port, DIP1_Pin},
-          {DIP2_GPIO_Port, DIP2_Pin},
-          {DIP3_GPIO_Port, DIP3_Pin},
-          {DIP4_GPIO_Port, DIP4_Pin},
-          {DIP5_GPIO_Port, DIP5_Pin},
-          {DIP6_GPIO_Port, DIP6_Pin},
-          {DIP7_GPIO_Port, DIP7_Pin},
-          {DIP8_GPIO_Port, DIP8_Pin},
-      }},
-      dipSwitch(dipInfo), lockController("LockController", key1, unlockBtn, valve1)
+      clrSensor("clrSensor", CLR_SENSOR_GPIO_Port, CLR_SENSOR_Pin), valve1("Valve1", ELV1_GPIO_Port, ELV1_Pin),
+      valve2("Valve2", ELV2_GPIO_Port, ELV2_Pin), valve3("Valve3", ELV3_GPIO_Port, ELV3_Pin),
+      valve4("Valve4", ELV4_GPIO_Port, ELV4_Pin), dipInfo{{
+                                                      {DIP1_GPIO_Port, DIP1_Pin},
+                                                      {DIP2_GPIO_Port, DIP2_Pin},
+                                                      {DIP3_GPIO_Port, DIP3_Pin},
+                                                      {DIP4_GPIO_Port, DIP4_Pin},
+                                                      {DIP5_GPIO_Port, DIP5_Pin},
+                                                      {DIP6_GPIO_Port, DIP6_Pin},
+                                                      {DIP7_GPIO_Port, DIP7_Pin},
+                                                      {DIP8_GPIO_Port, DIP8_Pin},
+                                                  }},
+      dipSwitch(dipInfo),
+      lockController("LockController", key1, unlockBtn, std::vector<HalValve *>{&valve1, &valve2, &valve3, &valve4})
 
 {
 }

@@ -249,6 +249,9 @@ class SlaveDevice
         HalSensor pSensor;
         HalSensor clrSensor;
         HalValve valve1;
+        HalValve valve2;
+        HalValve valve3;
+        HalValve valve4;
         DipSwitchInfo dipInfo;
         HalDipSwitch dipSwitch;
         LockController lockController;
