@@ -30,7 +30,7 @@ enum class Master2SlaveMessageId : uint8_t {
 enum class Slave2MasterMessageId : uint8_t {
     RST_RSP_MSG = 0x30,
     PING_RSP_MSG = 0x41,
-    ANNOUNCE_MSG = 0x50,
+    JOIN_REQUEST_MSG = 0x50,
     SHORT_ID_CONFIRM_MSG = 0x51,
     HEARTBEAT_MSG = 0x52,
 };

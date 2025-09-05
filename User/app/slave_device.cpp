@@ -29,7 +29,7 @@ SlaveDevice::SlaveDevice()
       m_isConfigured(false), m_deviceState(SlaveDeviceState::IDLE), m_timeOffset(0), // 初始时间偏移量为0
       m_isCollecting(false),                                                         // 初始未在采集
       m_lastSyncMessageTime(0),                                                      // 初始化上次sync消息时间
-      m_lastHeartbeatTime(0),                                                        // 初始化上次心跳时间
+      m_lastHeartbeatTime(HptimerGetUs()),                                           // 初始化上次心跳时间为当前时间
       m_inTdmaMode(false),                                                           // 初始不在TDMA模式
       m_scheduledStartTime(0),                                                       // 初始计划启动时间为0
       m_isScheduledToStart(false),                                                   // 初始未计划启动
@@ -64,8 +64,6 @@ SlaveDevice::SlaveDevice()
     InitializeMessageHandlers();
 
     m_dataCollectionTask = std::make_unique<DataCollectionTask>(*this);
-    m_announceTask = std::make_unique<AnnounceTask>(*this);
-    m_joinTask = std::make_unique<JoinTask>(*this);
     m_slaveDataProcT = std::make_unique<SlaveDataProcT>(*this);
     m_accessoryTask = std::make_unique<AccessoryTask>(*this);
 }
@@ -248,6 +246,42 @@ void SlaveDevice::sendHeartbeat()
     }
 }
 
+void SlaveDevice::sendJoinRequestMessage()
+{
+    elog_v(TAG, "Sending joinRequest message");
+
+    // 创建公告消息
+    auto joinRequestMsg = std::make_unique<WhtsProtocol::Slave2Master::JoinRequestMessage>();
+    joinRequestMsg->deviceId = m_deviceId;
+    joinRequestMsg->versionMajor = FIRMWARE_VERSION_MAJOR;
+    joinRequestMsg->versionMinor = FIRMWARE_VERSION_MINOR;
+    joinRequestMsg->versionPatch = FIRMWARE_VERSION_PATCH;
+
+    // 打包消息
+    std::vector<std::vector<uint8_t>> messageData = m_processor.packSlave2MasterMessage(m_deviceId, *joinRequestMsg);
+
+    // 发送所有片段
+    bool success = true;
+    for (auto &fragment : messageData)
+    {
+        if (send(fragment) != 0)
+        {
+            elog_e(TAG, "Failed to send joinRequest message fragment");
+            success = false;
+            break;
+        }
+    }
+
+    if (success)
+    {
+        elog_v(TAG, "JoinRequest message sent successfully");
+    }
+    else
+    {
+        elog_e(TAG, "Failed to send joinRequest message");
+    }
+}
+
 void SlaveDevice::OnSlotChanged(const SlotInfo &slotInfo)
 {
     // 如果有待回复的响应，即使不在采集状态也要处理
@@ -274,10 +308,15 @@ void SlaveDevice::OnSlotChanged(const SlotInfo &slotInfo)
         // 优先发送待回复的响应消息（避免与数据传输冲撞）
         sendPendingResponses();
 
-        // 在TDMA模式下发送心跳包（当前在第一个激活时隙）
+        // 在TDMA模式下发送相应消息（当前在第一个激活时隙）
         if (m_inTdmaMode)
         {
-            sendHeartbeat();
+            // 检查是否已分配短ID
+            if (m_isJoined && m_shortId != 0)
+            {
+                // 有短ID，发送心跳包
+                sendHeartbeat();
+            }
         }
 
         // 发送数据到后端（每个周期都发送当前采集的数据）
@@ -385,18 +424,6 @@ void SlaveDevice::run() const
         elog_d(TAG, "DataCollectionTask initialized and started");
     }
 
-    if (m_announceTask)
-    {
-        m_announceTask->give();
-        elog_d(TAG, "AnnounceTask initialized and started");
-    }
-
-    if (m_joinTask)
-    {
-        m_joinTask->give();
-        elog_d(TAG, "JoinTask initialized and started");
-    }
-
     if (m_slaveDataProcT)
     {
         m_slaveDataProcT->give();
@@ -415,111 +442,6 @@ void SlaveDevice::run() const
         HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
         TaskBase::delay(500);
     }
-}
-
-// AnnounceTask 实现
-SlaveDevice::AnnounceTask::AnnounceTask(SlaveDevice &parent) : TaskClassS("AnnounceTask", TaskPrio_Mid), parent(parent)
-{
-}
-
-void SlaveDevice::AnnounceTask::task()
-{
-    uint8_t announceCount = 0;
-
-    // 等待数据传输任务启动
-    TaskBase::delay(1000);
-
-    while (announceCount < MAX_ANNOUNCE_COUNT)
-    {
-        if (sendAnnounceMessage())
-        {
-            elog_d(TAG, "Announce message sent successfully (%d/%d)", announceCount + 1, MAX_ANNOUNCE_COUNT);
-        }
-        else
-        {
-            elog_e(TAG, "Failed to send announce message (%d/%d)", announceCount + 1, MAX_ANNOUNCE_COUNT);
-        }
-
-        announceCount++;
-
-        if (announceCount < MAX_ANNOUNCE_COUNT)
-        {
-            TaskBase::delay(ANNOUNCE_INTERVAL_MS);
-        }
-    }
-
-    elog_d(TAG, "Announce task completed, sent %d messages", announceCount);
-
-    // 任务完成后挂起自己
-    vTaskSuspend(nullptr);
-}
-
-bool SlaveDevice::AnnounceTask::sendAnnounceMessage() const
-{
-    // 创建 AnnounceMessage
-    WhtsProtocol::Slave2Master::AnnounceMessage announceMsg;
-    announceMsg.deviceId = parent.m_deviceId;
-    announceMsg.versionMajor = FIRMWARE_VERSION_MAJOR;
-    announceMsg.versionMinor = FIRMWARE_VERSION_MINOR;
-    announceMsg.versionPatch = FIRMWARE_VERSION_PATCH;
-
-    elog_d(TAG, "Creating announce message: ID=0x%08X, Version=%d.%d.%d", announceMsg.deviceId,
-           announceMsg.versionMajor, announceMsg.versionMinor, announceMsg.versionPatch);
-
-    auto packedData = parent.m_processor.packSlave2MasterMessage(parent.m_deviceId, announceMsg);
-
-    // 发送所有数据包片段
-    bool success = true;
-    for (auto &fragment : packedData)
-    {
-        if (parent.send(fragment) != 0)
-        {
-            elog_e(TAG, "Failed to send announce message fragment");
-            success = false;
-            break;
-        }
-    }
-
-    return success;
-}
-
-// JoinTask 实现
-SlaveDevice::JoinTask::JoinTask(SlaveDevice &parent) : TaskClassS("JoinTask", TaskPrio_Mid), parent(parent)
-{
-}
-
-void SlaveDevice::JoinTask::task()
-{
-    elog_d(TAG, "Join task started, waiting for network join...");
-
-    // 等待入网完成
-    if (waitForJoin())
-    {
-        elog_d(TAG, "Device successfully joined network with short ID: %d", parent.m_shortId);
-    }
-    else
-    {
-        elog_w(TAG, "Join timeout, device will continue without short ID");
-    }
-
-    // 任务完成后挂起自己
-    vTaskSuspend(nullptr);
-}
-
-bool SlaveDevice::JoinTask::waitForJoin() const
-{
-    const uint32_t startTime = HptimerGetMs();
-
-    while ((HptimerGetMs() - startTime) < JOIN_TIMEOUT_MS)
-    {
-        if (parent.m_isJoined)
-        {
-            return true;
-        }
-        TaskBase::delay(JOIN_CHECK_INTERVAL_MS);
-    }
-
-    return false;
 }
 
 // DataCollectionTask 实现
@@ -557,24 +479,6 @@ void SlaveDevice::DataCollectionTask::task()
             wasSlotManagerRunning = isCurrentlyRunning;
 
             parent.m_slotManager->Process();
-        }
-
-        // 检查sync消息超时和心跳逻辑
-        uint64_t currentTime = HptimerGetUs();
-
-        // 检查是否超过30秒没收到sync消息（退出TDMA模式）
-        if (parent.m_inTdmaMode && (currentTime - parent.m_lastSyncMessageTime) > parent.SYNC_TIMEOUT_US)
-        {
-            elog_v(TAG, "Sync message timeout, exiting TDMA mode");
-            parent.m_inTdmaMode = false;
-            parent.m_lastHeartbeatTime = currentTime; // 重置心跳计时
-        }
-
-        // 在非TDMA模式下，每10秒发送一次心跳
-        if (!parent.m_inTdmaMode && (currentTime - parent.m_lastHeartbeatTime) > parent.HEARTBEAT_INTERVAL_US)
-        {
-            elog_v(TAG, "Sending periodic heartbeat outside TDMA mode");
-            parent.sendHeartbeat();
         }
 
         // 减少轮询间隔以提高时隙切换精度
@@ -774,8 +678,41 @@ void SlaveDevice::AccessoryTask::task()
 {
     elog_d(TAG, "Accessory hardware initialized");
 
+    // send joinRequest when first power on
+    parent.sendJoinRequestMessage();
+
     for (;;)
     {
+
+        // 检查sync消息超时和心跳逻辑
+        uint64_t currentTime = HptimerGetUs();
+
+        // 检查是否超过30秒没收到sync消息（退出TDMA模式）
+        if (parent.m_inTdmaMode && (currentTime - parent.m_lastSyncMessageTime) > parent.SYNC_TIMEOUT_US)
+        {
+            elog_v(TAG, "Sync message timeout, exiting TDMA mode");
+            parent.m_inTdmaMode = false;
+            parent.m_lastHeartbeatTime = currentTime; // 重置心跳计时
+        }
+
+        // 在非TDMA模式下，每10秒检测短ID状态并发送相应消息
+        if (!parent.m_inTdmaMode && (currentTime - parent.m_lastHeartbeatTime) > parent.HEARTBEAT_INTERVAL_US)
+        {
+            // 检查是否已分配短ID
+            if (parent.m_isJoined && parent.m_shortId != 0)
+            {
+                // 有短ID，发送心跳包
+                elog_v(TAG, "Sending periodic heartbeat outside TDMA mode (Short ID: %d)", parent.m_shortId);
+                parent.sendHeartbeat();
+            }
+            else
+            {
+                // 没有短ID，发送公告消息
+                elog_v(TAG, "Sending periodic joinRequest message (no Short ID assigned)");
+                parent.sendJoinRequestMessage();
+            }
+        }
+
         // 自动处理逻辑
         lockController.Update();
 

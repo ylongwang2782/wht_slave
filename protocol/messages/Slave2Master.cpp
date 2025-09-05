@@ -39,8 +39,8 @@ bool PingRspMessage::deserialize(const std::vector<uint8_t> &data) {
     return true;
 }
 
-// AnnounceMessage 实现
-std::vector<uint8_t> AnnounceMessage::serialize() const {
+// JoinRequestMessage 实现
+std::vector<uint8_t> JoinRequestMessage::serialize() const {
     std::vector<uint8_t> result;
     result.push_back(deviceId & 0xFF);
     result.push_back((deviceId >> 8) & 0xFF);
@@ -53,7 +53,7 @@ std::vector<uint8_t> AnnounceMessage::serialize() const {
     return result;
 }
 
-bool AnnounceMessage::deserialize(const std::vector<uint8_t> &data) {
+bool JoinRequestMessage::deserialize(const std::vector<uint8_t> &data) {
     if (data.size() < 8) return false;
     deviceId = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
     versionMajor = data[4];

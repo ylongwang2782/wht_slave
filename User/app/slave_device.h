@@ -119,6 +119,11 @@ class SlaveDevice
     void sendHeartbeat();
 
     /**
+     * 发送公告消息
+     */
+    void sendJoinRequestMessage();
+
+    /**
      * 处理Master2Slave消息
      * @param message 接收到的消息
      * @return 生成的响应消息，如果不需要响应则返回nullptr
@@ -170,40 +175,6 @@ class SlaveDevice
     void OnSlotChanged(const SlotInfo &slotInfo);
 
   private:
-    /**
-     * 公告任务类 - 上电时发送AnnounceMsg
-     */
-    class AnnounceTask final : public TaskClassS<512>
-    {
-      public:
-        explicit AnnounceTask(SlaveDevice &parent);
-
-      private:
-        SlaveDevice &parent;
-        void task() override;
-        [[nodiscard]] bool sendAnnounceMessage() const;
-        static constexpr const char TAG[] = "AnnounceTask";
-        static constexpr uint8_t MAX_ANNOUNCE_COUNT = 1;      // 最大发送次数
-        static constexpr uint32_t ANNOUNCE_INTERVAL_MS = 500; // 发送间隔(ms)
-    };
-
-    /**
-     * 入网管理任务类 - 管理入网流程
-     */
-    class JoinTask final : public TaskClassS<512>
-    {
-      public:
-        explicit JoinTask(SlaveDevice &parent);
-
-      private:
-        SlaveDevice &parent;
-        void task() override;
-        [[nodiscard]] bool waitForJoin() const;
-        static constexpr const char TAG[] = "JoinTask";
-        static constexpr uint32_t JOIN_CHECK_INTERVAL_MS = 100; // 入网检查间隔
-        static constexpr uint32_t JOIN_TIMEOUT_MS = 10000;      // 入网超时时间(ms)
-    };
-
     /**
      * 数据采集管理任务类 - 管理数据采集状态和处理
      */
@@ -275,8 +246,6 @@ class SlaveDevice
     MasterComm m_masterComm;
 
     std::unique_ptr<DataCollectionTask> m_dataCollectionTask;
-    std::unique_ptr<AnnounceTask> m_announceTask;
-    std::unique_ptr<JoinTask> m_joinTask;
     std::unique_ptr<SlaveDataProcT> m_slaveDataProcT;
     std::unique_ptr<AccessoryTask> m_accessoryTask;
 

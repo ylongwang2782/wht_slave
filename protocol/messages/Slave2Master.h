@@ -36,7 +36,7 @@ class PingRspMessage : public Message {
     const char* getMessageTypeName() const override { return "Ping Response"; }
 };
 
-class AnnounceMessage : public Message {
+class JoinRequestMessage : public Message {
    public:
     uint32_t deviceId;
     uint8_t versionMajor;
@@ -46,9 +46,9 @@ class AnnounceMessage : public Message {
     std::vector<uint8_t> serialize() const override;
     bool deserialize(const std::vector<uint8_t>& data) override;
     uint8_t getMessageId() const override {
-        return static_cast<uint8_t>(Slave2MasterMessageId::ANNOUNCE_MSG);
+        return static_cast<uint8_t>(Slave2MasterMessageId::JOIN_REQUEST_MSG);
     }
-    const char* getMessageTypeName() const override { return "Announce"; }
+    const char* getMessageTypeName() const override { return "JoinRequest"; }
 };
 
 class ShortIdConfirmMessage : public Message {
