@@ -149,6 +149,22 @@ uint8_t SlaveDevice::getCurrentBatteryPercentage()
     return calculateBatteryPercentage(battery_voltage);
 }
 
+uint32_t SlaveDevice::generateRandomDelay()
+{
+    // 使用当前时间和设备ID生成伪随机数
+    static uint32_t seed = 0;
+    if (seed == 0)
+    {
+        seed = static_cast<uint32_t>(HptimerGetUs()) ^ DeviceUID::get();
+    }
+
+    // 简单的线性同余生成器
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+
+    // 生成0到HEARTBEAT_MAX_RANDOM_DELAY_MS之间的随机延迟
+    return seed % HEARTBEAT_MAX_RANDOM_DELAY_MS;
+}
+
 uint64_t SlaveDevice::GetSyncTimestampUs() const
 {
     // 获取当前本地时间（微秒）
@@ -249,6 +265,16 @@ void SlaveDevice::sendPendingResponses()
 
 void SlaveDevice::sendHeartbeat()
 {
+    // 生成随机延迟以避免碰撞
+    uint32_t randomDelay = generateRandomDelay();
+    elog_v(TAG, "Heartbeat random delay: %d ms", randomDelay);
+
+    // 应用随机延迟
+    if (randomDelay > 0)
+    {
+        osDelay(randomDelay);
+    }
+
     // 获取当前电池电量百分比
     uint8_t batteryPercentage = getCurrentBatteryPercentage();
 
@@ -391,7 +417,7 @@ void SlaveDevice::setShortId(const uint8_t id)
     m_isJoined = true;
     elog_d(TAG, "Short ID assigned: %d, device joined successfully", m_shortId);
 
-    sendHeartbeat();
+    // sendHeartbeat();
 }
 
 void SlaveDevice::processFrame(const Frame &frame)
