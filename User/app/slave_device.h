@@ -124,6 +124,19 @@ class SlaveDevice
     void sendJoinRequestMessage();
 
     /**
+     * 计算电池电量百分比
+     * @param voltage 电池电压 (V)
+     * @return 电池电量百分比 (0-100%)
+     */
+    static uint8_t calculateBatteryPercentage(float voltage);
+
+    /**
+     * 获取当前电池电量百分比
+     * @return 电池电量百分比 (0-100%)
+     */
+    uint8_t getCurrentBatteryPercentage();
+
+    /**
      * 处理Master2Slave消息
      * @param message 接收到的消息
      * @return 生成的响应消息，如果不需要响应则返回nullptr

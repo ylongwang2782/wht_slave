@@ -114,6 +114,41 @@ uint32_t SlaveDevice::getCurrentTimestamp()
     return tick;
 }
 
+uint8_t SlaveDevice::calculateBatteryPercentage(float voltage)
+{
+    // 电池电压范围: 3.2V (0%) - 4.2V (100%)
+    constexpr float MIN_VOLTAGE = 3.2f;
+    constexpr float MAX_VOLTAGE = 4.2f;
+
+    // 限制电压范围
+    if (voltage <= MIN_VOLTAGE)
+    {
+        return 0;
+    }
+    if (voltage >= MAX_VOLTAGE)
+    {
+        return 100;
+    }
+
+    // 线性计算百分比
+    float percentage = ((voltage - MIN_VOLTAGE) / (MAX_VOLTAGE - MIN_VOLTAGE)) * 100.0f;
+    return static_cast<uint8_t>(percentage + 0.5f); // 四舍五入
+}
+
+uint8_t SlaveDevice::getCurrentBatteryPercentage()
+{
+    // 读取ADC值获取电池电压
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, 10);
+    uint16_t adc_value = HAL_ADC_GetValue(&hadc1);
+
+    // 转换为电压值 (参考AccessoryTask中的计算方式)
+    float battery_voltage = (adc_value / 4095.0f) * 3.15f * 2.0f;
+
+    // 计算电池电量百分比
+    return calculateBatteryPercentage(battery_voltage);
+}
+
 uint64_t SlaveDevice::GetSyncTimestampUs() const
 {
     // 获取当前本地时间（微秒）
@@ -214,11 +249,14 @@ void SlaveDevice::sendPendingResponses()
 
 void SlaveDevice::sendHeartbeat()
 {
-    elog_v(TAG, "Sending heartbeat message");
+    // 获取当前电池电量百分比
+    uint8_t batteryPercentage = getCurrentBatteryPercentage();
+
+    elog_v(TAG, "Sending heartbeat message with battery level: %d%%", batteryPercentage);
 
     // 创建心跳消息
     auto heartbeatMsg = std::make_unique<WhtsProtocol::Slave2Master::HeartbeatMessage>();
-    heartbeatMsg->reserve = 0; // 保留字段设为0
+    heartbeatMsg->batteryLevel = batteryPercentage;
 
     // 打包消息
     std::vector<std::vector<uint8_t>> messageData = m_processor.packSlave2MasterMessage(m_deviceId, *heartbeatMsg);
@@ -237,7 +275,7 @@ void SlaveDevice::sendHeartbeat()
 
     if (success)
     {
-        elog_v(TAG, "Heartbeat sent successfully");
+        elog_v(TAG, "Heartbeat sent successfully with battery level: %d%%", batteryPercentage);
         m_lastHeartbeatTime = HptimerGetUs();
     }
     else

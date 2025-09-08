@@ -76,12 +76,12 @@ bool ShortIdConfirmMessage::deserialize(const std::vector<uint8_t> &data) {
 
 // HeartbeatMessage 实现
 std::vector<uint8_t> HeartbeatMessage::serialize() const {
-    return {reserve};
+    return {batteryLevel};
 }
 
 bool HeartbeatMessage::deserialize(const std::vector<uint8_t> &data) {
     if (data.size() < 1) return false;
-    reserve = data[0];
+    batteryLevel = data[0];
     return true;
 }
 
