@@ -61,6 +61,7 @@ class SlaveDevice
     bool m_inTdmaMode;                                             // 是否在TDMA管理模式下
     static constexpr uint64_t SYNC_TIMEOUT_US = 30000000ULL;       // 30秒超时(us)
     static constexpr uint64_t HEARTBEAT_INTERVAL_US = 10000000ULL; // 10秒心跳间隔(us)
+    static constexpr uint32_t HEARTBEAT_MAX_RANDOM_DELAY_MS = 500; // 心跳随机延迟最大值(ms)
 
     // 延迟启动相关
     uint64_t m_scheduledStartTime; // 计划启动时间戳(us)
@@ -135,6 +136,12 @@ class SlaveDevice
      * @return 电池电量百分比 (0-100%)
      */
     uint8_t getCurrentBatteryPercentage();
+
+    /**
+     * 生成随机延迟时间
+     * @return 随机延迟时间(ms)
+     */
+    static uint32_t generateRandomDelay();
 
     /**
      * 处理Master2Slave消息
