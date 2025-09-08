@@ -390,6 +390,8 @@ void SlaveDevice::setShortId(const uint8_t id)
     m_shortId = id;
     m_isJoined = true;
     elog_d(TAG, "Short ID assigned: %d, device joined successfully", m_shortId);
+
+    sendHeartbeat();
 }
 
 void SlaveDevice::processFrame(const Frame &frame)
