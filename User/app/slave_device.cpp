@@ -372,16 +372,16 @@ void SlaveDevice::OnSlotChanged(const SlotInfo &slotInfo)
         // 优先发送待回复的响应消息（避免与数据传输冲撞）
         sendPendingResponses();
 
-        // 在TDMA模式下发送相应消息（当前在第一个激活时隙）
-        if (m_inTdmaMode)
-        {
-            // 检查是否已分配短ID
-            if (m_isJoined && m_shortId != 0)
-            {
-                // 有短ID，发送心跳包
-                sendHeartbeat();
-            }
-        }
+        // // 在TDMA模式下发送相应消息（当前在第一个激活时隙）
+        // if (m_inTdmaMode)
+        // {
+        //     // 检查是否已分配短ID
+        //     if (m_isJoined && m_shortId != 0)
+        //     {
+        //         // 有短ID，发送心跳包
+        //         sendHeartbeat();
+        //     }
+        // }
 
         // 发送数据到后端（每个周期都发送当前采集的数据）
         if (m_dataCollectionTask)
