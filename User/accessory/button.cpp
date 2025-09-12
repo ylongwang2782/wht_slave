@@ -35,7 +35,7 @@ HalSensor::HalSensor(const char *name, GPIO_TypeDef *port, uint16_t pin) : m_Nam
 
 bool HalSensor::IsTrigger() const
 {
-    return HAL_GPIO_ReadPin(m_Port, m_Pin) == GPIO_PIN_SET;
+    return HAL_GPIO_ReadPin(m_Port, m_Pin) == GPIO_PIN_RESET;
 }
 
 const char *HalSensor::GetName() const
