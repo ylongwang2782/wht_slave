@@ -165,7 +165,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart) {
     if (huart->Instance == RS485_UART.Instance) {
         // 检查是否是工厂测试入口指令（仅在检测期间有效）
         factory_test_process_entry_byte(uart_rx_char);
-
+        
         if (factory_test_is_enabled()) {
             factory_test_process_data(uart_rx_char);
         } else {
@@ -193,16 +193,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart) {
                 // 普通字符，添加到缓冲区
                 uart_cmd_buffer[uart_cmd_index] = uart_rx_char;
                 uart_cmd_index++;
-
-                // 回显字符到终端
-                RS485_TX_EN();
-                HAL_UART_Transmit(&RS485_UART, &uart_rx_char, 1, HAL_MAX_DELAY);
-                RS485_RX_EN();
             }
         }
 
         // 继续接收下一个字符
-        RS485_RX_EN();
         HAL_UART_Receive_IT(&RS485_UART, &uart_rx_char, 1);
     }
 }
