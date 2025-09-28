@@ -173,10 +173,9 @@ void StartDefaultTask(void *argument)
     } else {
         // 没有检测到工厂测试指令，进入正常应用程序
 
-        // increase debug uart baudrate to 921600 for a better debug experience
-        DEBUG_UART.Init.BaudRate = 921600;
-        HAL_UART_Init(&DEBUG_UART);
-        
+        // increase RS485 uart baudrate to 460800 for a better debug experience
+        RS485_UART.Init.BaudRate = 460800;
+        HAL_UART_Init(&RS485_UART);
         // 重新启动UART接收中断，因为波特率更改后中断会失效
         uart_cmd_handler_restart_interrupt();
 
@@ -195,7 +194,9 @@ void StartDefaultTask(void *argument)
 /* USER CODE BEGIN Application */
 
 int __io_putchar(int ch) {
-    HAL_UART_Transmit(&DEBUG_UART, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+    RS485_TX_EN();
+    HAL_UART_Transmit(&RS485_UART, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+    RS485_RX_EN();
     return ch;
 }
 

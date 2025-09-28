@@ -175,12 +175,13 @@ HAL_StatusTypeDef factory_test_send_data(const uint8_t* data, uint16_t length) {
  * @brief  Initialize factory test mode
  * @retval None
  */
-extern uint8_t rs485_uart_rx_char;
+extern uint8_t uart_rx_char;
 void factory_test_init(void) {
     // set elog level to error
     elog_set_filter_tag_lvl(TAG, ELOG_LVL_ERROR);
 
-    HAL_UART_Receive_IT(&RS485_UART, &rs485_uart_rx_char, 1);
+    RS485_RX_EN();
+    HAL_UART_Receive_IT(&RS485_UART, &uart_rx_char, 1);
 
     test_state = FACTORY_TEST_DISABLED;
     ring_buffer_reset();

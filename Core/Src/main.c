@@ -69,9 +69,10 @@ void MX_FREERTOS_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-    if (huart->Instance == DEBUG_UART.Instance) {
+    if (huart->Instance == RS485_UART.Instance) {
         extern osSemaphoreId_t elog_dma_lockHandle;
         osSemaphoreRelease(elog_dma_lockHandle);
+        RS485_RX_EN(); // 传输完成后切换回接收模式
     }
 }
 /* USER CODE END 0 */

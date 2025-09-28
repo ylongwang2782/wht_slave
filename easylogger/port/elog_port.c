@@ -79,8 +79,10 @@ void elog_port_deinit(void) {}
  * @param size log size
  */
 void elog_port_output(const char *log, size_t size) {
-    HAL_UART_Transmit_DMA(&DEBUG_UART, (uint8_t *)log, size);
+    RS485_TX_EN();
+    HAL_UART_Transmit_DMA(&RS485_UART, (uint8_t *)log, size);
     osSemaphoreAcquire(elog_dma_lockHandle, osWaitForever);
+    // RS485_RX_EN() 在DMA传输完成回调中调用
 }
 
 /**

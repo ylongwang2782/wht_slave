@@ -31,8 +31,7 @@
 /* Private variables ---------------------------------------------------------*/
 static char uart_cmd_buffer[UART_CMD_BUFFER_SIZE];
 static uint8_t uart_cmd_index = 0;
-static uint8_t uart_rx_char;
-uint8_t rs485_uart_rx_char;
+ uint8_t uart_rx_char;
 
 /* Task handles */
 osThreadId_t uartCmdTaskHandle;
@@ -78,7 +77,8 @@ static void trim_string(char* str) {
  */
 void uart_cmd_handler_restart_interrupt(void) {
     // 重新启动UART接收中断
-    HAL_UART_Receive_IT(&DEBUG_UART, &uart_rx_char, 1);
+    RS485_RX_EN();
+    HAL_UART_Receive_IT(&RS485_UART, &uart_rx_char, 1);
 }
 
 /**
@@ -103,7 +103,8 @@ void uart_cmd_handler_init(void) {
     }
 
     // 启动第一次UART接收中断
-    HAL_UART_Receive_IT(&DEBUG_UART, &uart_rx_char, 1);
+    RS485_RX_EN();
+    HAL_UART_Receive_IT(&RS485_UART, &uart_rx_char, 1);
 }
 
 /**
@@ -161,43 +162,47 @@ void process_uart_command(char* command) {
  * @retval None
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef* huart) {
-    if (huart->Instance == DEBUG_UART.Instance) {
-        // 正常的命令处理逻辑
-        if (uart_rx_char == '\r' || uart_rx_char == '\n') {
-            // 接收到回车或换行，处理命令
-            if (uart_cmd_index > 0) {
-                uart_cmd_buffer[uart_cmd_index] = '\0';
-                process_uart_command(uart_cmd_buffer);
-                uart_cmd_index = 0;
-                memset(uart_cmd_buffer, 0, sizeof(uart_cmd_buffer));
-            }
-        } else if (uart_rx_char == '\b' || uart_rx_char == 127) {
-            // 退格键处理
-            if (uart_cmd_index > 0) {
-                uart_cmd_index--;
-                uart_cmd_buffer[uart_cmd_index] = '\0';
-                // 发送退格、空格、退格来清除终端上的字符
-                HAL_UART_Transmit(&DEBUG_UART, (uint8_t*)"\b \b", 3,
-                                  HAL_MAX_DELAY);
-            }
-        } else if (uart_cmd_index < (UART_CMD_BUFFER_SIZE - 1)) {
-            // 普通字符，添加到缓冲区
-            uart_cmd_buffer[uart_cmd_index] = uart_rx_char;
-            uart_cmd_index++;
+    if (huart->Instance == RS485_UART.Instance) {
+        // 检查是否是工厂测试入口指令（仅在检测期间有效）
+        factory_test_process_entry_byte(uart_rx_char);
 
-            // 回显字符到终端
-            HAL_UART_Transmit(&DEBUG_UART, &uart_rx_char, 1, HAL_MAX_DELAY);
+        if (factory_test_is_enabled()) {
+            factory_test_process_data(uart_rx_char);
+        } else {
+            // 正常的命令处理逻辑
+            if (uart_rx_char == '\r' || uart_rx_char == '\n') {
+                // 接收到回车或换行，处理命令
+                if (uart_cmd_index > 0) {
+                    uart_cmd_buffer[uart_cmd_index] = '\0';
+                    process_uart_command(uart_cmd_buffer);
+                    uart_cmd_index = 0;
+                    memset(uart_cmd_buffer, 0, sizeof(uart_cmd_buffer));
+                }
+            } else if (uart_rx_char == '\b' || uart_rx_char == 127) {
+                // 退格键处理
+                if (uart_cmd_index > 0) {
+                    uart_cmd_index--;
+                    uart_cmd_buffer[uart_cmd_index] = '\0';
+                    // 发送退格、空格、退格来清除终端上的字符
+                    RS485_TX_EN();
+                    HAL_UART_Transmit(&RS485_UART, (uint8_t*)"\b \b", 3,
+                                      HAL_MAX_DELAY);
+                    RS485_RX_EN();
+                }
+            } else if (uart_cmd_index < (UART_CMD_BUFFER_SIZE - 1)) {
+                // 普通字符，添加到缓冲区
+                uart_cmd_buffer[uart_cmd_index] = uart_rx_char;
+                uart_cmd_index++;
+
+                // 回显字符到终端
+                RS485_TX_EN();
+                HAL_UART_Transmit(&RS485_UART, &uart_rx_char, 1, HAL_MAX_DELAY);
+                RS485_RX_EN();
+            }
         }
 
         // 继续接收下一个字符
-        HAL_UART_Receive_IT(&DEBUG_UART, &uart_rx_char, 1);
-    } else if (huart->Instance == RS485_UART.Instance) {
-        // 检查是否是工厂测试入口指令（仅在检测期间有效）
-        factory_test_process_entry_byte(rs485_uart_rx_char);
-
-        if (factory_test_is_enabled()) {
-            factory_test_process_data(rs485_uart_rx_char);
-        }
-        HAL_UART_Receive_IT(&RS485_UART, &rs485_uart_rx_char, 1);
+        RS485_RX_EN();
+        HAL_UART_Receive_IT(&RS485_UART, &uart_rx_char, 1);
     }
 }
