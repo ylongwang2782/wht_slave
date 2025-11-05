@@ -154,7 +154,7 @@ int MasterComm::Initialize(void)
     // 创建UWB通信任务
     constexpr osThreadAttr_t uwbTaskAttributes = {
         .name = "uwbCommTask",
-        .stack_size = 512 * 16,
+        .stack_size = 512 * 16, // 8KB stack size
         .priority = (osPriority_t)osPriorityNormal,
     };
 

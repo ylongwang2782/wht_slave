@@ -861,7 +861,7 @@ template <class Interface> class CX310
         init_success &= set_psdu_data_rate(PARAM_PSDU_DATA_RATE_7_8);    // PSDU data rate 4
 
         init_success &= set_recv_delay(500);
-        init_success &= set_tx_power(3); // TX power 5
+        init_success &= set_tx_power(1); // TX power 5
         // init_success &= set_auto_recv_en(1);
         return 0;
     }
