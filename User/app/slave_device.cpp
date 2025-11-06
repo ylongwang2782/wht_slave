@@ -691,14 +691,17 @@ SlaveDevice::SlaveDataProcT::SlaveDataProcT(SlaveDevice &parent)
 void SlaveDevice::SlaveDataProcT::task()
 {
     elog_v(TAG, "SlaveDataProcT started");
-    uwbRxMsg msg;
+
+    // 将大对象从栈改为堆分配，减少栈空间占用 (1024字节)
+    auto msg = std::make_unique<uwbRxMsg>();
+
     for (;;)
     {
-        if (parent.m_masterComm.ReceiveData(&msg, 0) == 0)
+        if (parent.m_masterComm.ReceiveData(msg.get(), 0) == 0)
         {
-            elog_v(TAG, "SlaveDataProcT recvData size: %d", msg.dataLen);
+            elog_v(TAG, "SlaveDataProcT recvData size: %d", msg->dataLen);
             // copy msg.data to recvData
-            recvData.assign(msg.data, msg.data + msg.dataLen);
+            recvData.assign(msg->data, msg->data + msg->dataLen);
 
             if (!recvData.empty())
             {

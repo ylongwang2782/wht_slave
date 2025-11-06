@@ -24,15 +24,15 @@ extern "C" uint32_t SlaveDeviceGetSyncTimestampMs(void *device)
 
 extern "C" int main_app(void)
 {
-    SlaveDevice slaveDevice;
+    // 使用 new 在堆上分配，避免占用栈空间
+    SlaveDevice *pSlaveDevice = new SlaveDevice();
 
-    // Register SlaveDevice with easylogger for synchronized timestamps
-    g_GlobalSlaveDevice = &slaveDevice;
-    ElogSetSlaveDevice(&slaveDevice, SlaveDeviceGetSyncTimestampMs);
+    g_GlobalSlaveDevice = pSlaveDevice;
+    ElogSetSlaveDevice(pSlaveDevice, SlaveDeviceGetSyncTimestampMs);
 
     elog_i(TAG, "SlaveDevice registered with easylogger for synchronized timestamps");
 
-    slaveDevice.run();
+    pSlaveDevice->run();
 
     for (;;)
     {

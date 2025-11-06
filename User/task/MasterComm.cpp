@@ -1,6 +1,7 @@
 #include "MasterComm.h"
 
 #include "cmsis_os2.h"
+#include <memory>
 
 // #include "deca_device_api.h"
 // #include "deca_regs.h"
@@ -27,21 +28,23 @@ void MasterComm::UwbCommTaskWrapper(void *argument)
 void MasterComm::UwbCommTask()
 {
     static auto TAG = "uwb_comm";
-    UwbTxMsg txMsg;
-    uwbRxMsg rxMsg;
 
-    CX310<CX310_SlaveSpiAdapter> uwb;
+    // 将大对象从栈改为堆分配，减少栈空间占用
+    auto txMsg = std::make_unique<UwbTxMsg>();
+    auto rxMsg = std::make_unique<uwbRxMsg>();
+    auto uwb = std::make_unique<CX310<CX310_SlaveSpiAdapter>>();
+
     // 设置全局指针，用于中断处理
-    g_uwbAdapter = &uwb.get_interface();
+    g_uwbAdapter = &uwb->get_interface();
 
     std::vector<uint8_t> buffer = {0};
 
-    if (uwb.init())
+    if (uwb->init())
     {
         elog_i(TAG, "uwb.init success");
     }
     osDelay(3);
-    uwb.set_recv_mode();
+    uwb->set_recv_mode();
 
     // if DIP1 reset, set uwb channel to 6
     // else if DIP2 reset, set uwb channel to 7
@@ -51,27 +54,27 @@ void MasterComm::UwbCommTask()
     // else set uwb channel to 5
     if (HAL_GPIO_ReadPin(DIP1_GPIO_Port, DIP1_Pin) == GPIO_PIN_RESET)
     {
-        uwb.set_channel(6);
+        uwb->set_channel(6);
     }
     else if (HAL_GPIO_ReadPin(DIP2_GPIO_Port, DIP2_Pin) == GPIO_PIN_RESET)
     {
-        uwb.set_channel(7);
+        uwb->set_channel(7);
     }
     else if (HAL_GPIO_ReadPin(DIP3_GPIO_Port, DIP3_Pin) == GPIO_PIN_RESET)
     {
-        uwb.set_channel(8);
+        uwb->set_channel(8);
     }
     else if (HAL_GPIO_ReadPin(DIP4_GPIO_Port, DIP4_Pin) == GPIO_PIN_RESET)
     {
-        uwb.set_channel(9);
+        uwb->set_channel(9);
     }
     else if (HAL_GPIO_ReadPin(DIP5_GPIO_Port, DIP5_Pin) == GPIO_PIN_RESET)
     {
-        uwb.set_channel(10);
+        uwb->set_channel(10);
     }
     else
     {
-        uwb.set_channel(5);
+        uwb->set_channel(5);
     }
 
     for (;;)
@@ -80,34 +83,34 @@ void MasterComm::UwbCommTask()
         if (osSemaphoreAcquire(uwbTxSemaphore, 0) == osOK)
         {
             // 从队列获取发送消息
-            if (osMessageQueueGet(uwbTxQueue, &txMsg, nullptr, 0) == osOK)
+            if (osMessageQueueGet(uwbTxQueue, txMsg.get(), nullptr, 0) == osOK)
             {
-                std::vector<uint8_t> tx_data(txMsg.data, txMsg.data + txMsg.dataLen);
+                std::vector<uint8_t> tx_data(txMsg->data, txMsg->data + txMsg->dataLen);
                 elog_i(TAG, "tx begin");
-                uwb.update();
-                uwb.data_transmit(tx_data);
+                uwb->update();
+                uwb->data_transmit(tx_data);
             }
         }
 
-        if (uwb.get_recv_data(buffer))
+        if (uwb->get_recv_data(buffer))
         {
-            rxMsg.dataLen = buffer.size();
-            for (int i = 0; i < rxMsg.dataLen; i++)
+            rxMsg->dataLen = buffer.size();
+            for (int i = 0; i < rxMsg->dataLen; i++)
             {
-                rxMsg.data[i] = buffer[i];
+                rxMsg->data[i] = buffer[i];
             }
-            rxMsg.timestamp = osKernelGetTickCount();
-            rxMsg.statusReg = 0;
-            osMessageQueuePut(uwbRxQueue, &rxMsg, 0, 0);
+            rxMsg->timestamp = osKernelGetTickCount();
+            rxMsg->statusReg = 0;
+            osMessageQueuePut(uwbRxQueue, rxMsg.get(), 0, 0);
 
             // 如果有回调函数，调用它
             if (uwbRxCallback != nullptr)
             {
-                uwbRxCallback(&rxMsg);
+                uwbRxCallback(rxMsg.get());
             }
         }
 
-        uwb.update();
+        uwb->update();
         osDelay(1);
     }
 }
